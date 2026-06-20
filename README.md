@@ -13,6 +13,7 @@
 ## 环境要求
 
 - Ubuntu 22.04/24.04 或 Debian 12。
+- CPU 架构：默认官方镜像当前为 `linux/amd64`；安装脚本会校验所选镜像是否支持当前平台。ARM VPS 需要通过 `TS3_IMAGE` 指定兼容镜像。
 - root 权限，或可使用 sudo。
 - Docker Engine。
 - Docker Compose 插件，也就是 `docker compose`。
@@ -40,6 +41,8 @@ curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main
 sudo bash install-teamspeak3-server.sh
 ```
 
+用于长期生产环境时，建议在项目发布版本后把 URL 里的 `main` 替换为固定 tag，并在执行前先查看下载的脚本内容。
+
 如果需要在安装时设置服务器密码，仍然是在 VPS SSH 会话里运行：
 
 ```bash
@@ -54,6 +57,8 @@ sudo TS3_SERVER_PASSWORD='change-me' bash install-teamspeak3-server.sh
 curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main/checks/check-teamspeak3-server.sh -o check-teamspeak3-server.sh
 sudo bash check-teamspeak3-server.sh
 ```
+
+检查脚本无法从生成的 `.env` 判断安装时是否设置过 `TS3_SERVER_PASSWORD`；如果设置过，客户端连接时继续使用当时设置的密码。
 
 ## TeamSpeak 客户端连接
 
@@ -135,7 +140,7 @@ sudo TS3_REMOVE_DATA=true bash uninstall-teamspeak3-server.sh
 | --- | --- | --- |
 | `TS3_IMAGE_DEFAULT` | `teamspeak:3.13.8` | 优先使用的官方镜像 |
 | `TS3_IMAGE_FALLBACKS` | `docker.m.daocloud.io/library/teamspeak:3.13.8` | Docker Hub 不可达时使用的备用镜像 |
-| `TS3_IMAGE` | 空 | 强制指定镜像 |
+| `TS3_IMAGE` | 空 | 强制指定镜像；ARM VPS 可用它指定兼容镜像 |
 | `TS3_PROJECT_DIR` | `/opt/teamspeak3-docker` | Compose 项目目录 |
 | `TS3_DATA_DIR` | `/opt/teamspeak3-docker/data` | 持久化数据目录 |
 | `TS3_COMPOSE_PROJECT` | `teamspeak3` | Compose 项目名 |

@@ -10,6 +10,7 @@ TS3_QUERY_PORT="${TS3_QUERY_PORT:-10011}"
 TS3_QUERY_BIND="${TS3_QUERY_BIND:-127.0.0.1}"
 TS3_FILE_PORT="${TS3_FILE_PORT:-30033}"
 PUBLIC_IP="${PUBLIC_IP:-}"
+TS3_SERVER_PASSWORD="${TS3_SERVER_PASSWORD:-}"
 
 section() {
   printf '\n== %s ==\n' "$*"
@@ -135,7 +136,11 @@ else
   printf 'Server address:  %s:%s\n' "${PUBLIC_IP:-<your-vps-public-ip>}" "$TS3_VOICE_PORT"
 fi
 printf 'Voice port:      %s/udp\n' "$TS3_VOICE_PORT"
-printf 'Server password: blank by default; this script does not set a server password\n'
+if [ -n "$TS3_SERVER_PASSWORD" ]; then
+  printf 'Server password: provided by current TS3_SERVER_PASSWORD environment\n'
+else
+  printf 'Server password: blank by default; use the password you set during install if TS3_SERVER_PASSWORD was used\n'
+fi
 printf 'Privilege key:   check admin token hint below, then use it in the TeamSpeak client after first login\n'
 
 section "recent logs"

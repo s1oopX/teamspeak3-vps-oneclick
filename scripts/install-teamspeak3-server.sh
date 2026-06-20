@@ -16,6 +16,7 @@ TS3_CONTAINER_UID="${TS3_CONTAINER_UID:-9987}"
 TS3_CONTAINER_GID="${TS3_CONTAINER_GID:-9987}"
 PUBLIC_IP="${PUBLIC_IP:-}"
 TS3_SERVER_PASSWORD="${TS3_SERVER_PASSWORD:-}"
+TS3_IMAGE_PLATFORM=""
 
 log() {
   printf '[ts3-docker-install] %s\n' "$*"
@@ -55,9 +56,12 @@ check_platform() {
   esac
 
   case "$(uname -m)" in
-    x86_64|amd64|aarch64|arm64) ;;
+    x86_64|amd64) TS3_IMAGE_PLATFORM="linux/amd64" ;;
+    aarch64|arm64) TS3_IMAGE_PLATFORM="linux/arm64" ;;
     *) fail "unsupported architecture: $(uname -m)" ;;
   esac
+
+  log "detected Docker image platform: ${TS3_IMAGE_PLATFORM}"
 }
 
 check_docker() {
@@ -86,34 +90,71 @@ check_existing_container_name() {
 
 image_manifest_ok() {
   local image="$1"
+  local manifest
   if command -v timeout >/dev/null 2>&1; then
-    timeout 35 docker manifest inspect "$image" >/dev/null 2>&1
+    manifest="$(timeout 35 docker manifest inspect --verbose "$image" 2>/dev/null)" || return 1
   else
-    docker manifest inspect "$image" >/dev/null 2>&1
+    manifest="$(docker manifest inspect --verbose "$image" 2>/dev/null)" || return 1
   fi
+
+  image_manifest_supports_platform "$manifest"
+}
+
+image_manifest_supports_platform() {
+  local manifest="$1"
+  local platform_os="${TS3_IMAGE_PLATFORM%%/*}"
+  local platform_arch="${TS3_IMAGE_PLATFORM#*/}"
+
+  if ! printf '%s\n' "$manifest" | grep -q '"platform"'; then
+    return 0
+  fi
+
+  printf '%s\n' "$manifest" | awk -v os="$platform_os" -v arch="$platform_arch" '
+    /"platform"[[:space:]]*:/ {
+      in_platform = 1
+      found_os = 0
+      found_arch = 0
+      next
+    }
+    in_platform && /}/ {
+      if (found_os && found_arch) {
+        supported = 1
+      }
+      in_platform = 0
+    }
+    in_platform && $0 ~ "\"os\"[[:space:]]*:[[:space:]]*\"" os "\"" {
+      found_os = 1
+    }
+    in_platform && $0 ~ "\"architecture\"[[:space:]]*:[[:space:]]*\"" arch "\"" {
+      found_arch = 1
+    }
+    END {
+      exit (supported ? 0 : 1)
+    }
+  '
 }
 
 select_image() {
   if [ -n "$TS3_IMAGE" ]; then
     log "using image from TS3_IMAGE: ${TS3_IMAGE}"
     if ! image_manifest_ok "$TS3_IMAGE"; then
-      fail "configured image is not reachable or does not exist: ${TS3_IMAGE}"
+      fail "configured image is not reachable or does not support ${TS3_IMAGE_PLATFORM}: ${TS3_IMAGE}"
     fi
     return
   fi
 
   local candidate
   for candidate in "$TS3_IMAGE_DEFAULT" $TS3_IMAGE_FALLBACKS; do
-    log "checking image reachability: ${candidate}"
+    log "checking image reachability and platform support (${TS3_IMAGE_PLATFORM}): ${candidate}"
     if image_manifest_ok "$candidate"; then
       TS3_IMAGE="$candidate"
       log "selected image: ${TS3_IMAGE}"
       return
     fi
-    log "image not reachable from this server: ${candidate}"
+    log "image not reachable from this server or does not support ${TS3_IMAGE_PLATFORM}: ${candidate}"
   done
 
-  fail "no reachable TeamSpeak image found. Set TS3_IMAGE to a reachable mirror of teamspeak:3.13.8."
+  fail "no reachable TeamSpeak image found for ${TS3_IMAGE_PLATFORM}. Set TS3_IMAGE to a reachable, compatible TeamSpeak image."
 }
 
 check_port_free() {

@@ -13,6 +13,7 @@ Because domestic-region VPS instances may experience unstable access to Docker H
 ## Requirements
 
 - Ubuntu 22.04/24.04 or Debian 12.
+- CPU architecture: the default official image is currently `linux/amd64`; the installer validates that the selected image supports the current platform. ARM VPS instances need a compatible image via `TS3_IMAGE`.
 - Root access or sudo.
 - Docker Engine.
 - Docker Compose plugin (`docker compose`).
@@ -40,6 +41,8 @@ curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main
 sudo bash install-teamspeak3-server.sh
 ```
 
+For long-lived production installs, prefer replacing `main` in the URL with a fixed release tag once one is available, and inspect the downloaded script before running it.
+
 To set a server password during install, still run this inside the VPS SSH session:
 
 ```bash
@@ -54,6 +57,8 @@ The password is applied through local ServerQuery after the container starts. It
 curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main/checks/check-teamspeak3-server.sh -o check-teamspeak3-server.sh
 sudo bash check-teamspeak3-server.sh
 ```
+
+The check script cannot tell from the generated `.env` whether `TS3_SERVER_PASSWORD` was set during install. If it was, keep using that password in the client.
 
 ## Client Connection
 
@@ -135,7 +140,7 @@ Common environment variables:
 | --- | --- | --- |
 | `TS3_IMAGE_DEFAULT` | `teamspeak:3.13.8` | Preferred official image |
 | `TS3_IMAGE_FALLBACKS` | `docker.m.daocloud.io/library/teamspeak:3.13.8` | Fallback images for networks where Docker Hub is unreachable |
-| `TS3_IMAGE` | empty | Force a specific image |
+| `TS3_IMAGE` | empty | Force a specific image; ARM VPS instances can use it to provide a compatible image |
 | `TS3_PROJECT_DIR` | `/opt/teamspeak3-docker` | Compose project directory |
 | `TS3_DATA_DIR` | `/opt/teamspeak3-docker/data` | Persistent data directory |
 | `TS3_COMPOSE_PROJECT` | `teamspeak3` | Compose project name |
