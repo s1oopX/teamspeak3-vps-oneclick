@@ -39,12 +39,6 @@ curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main
 sudo bash install-teamspeak3-server.sh
 ```
 
-If the printed public address is inaccurate, specify the address shown to clients:
-
-```bash
-sudo PUBLIC_IP='your-vps-public-ip' bash install-teamspeak3-server.sh
-```
-
 ## Client Connection
 
 ```text

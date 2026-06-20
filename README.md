@@ -39,12 +39,6 @@ curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main
 sudo bash install-teamspeak3-server.sh
 ```
 
-公网地址显示不准确时，可手动指定脚本输出给客户端的连接地址：
-
-```bash
-sudo PUBLIC_IP='your-vps-public-ip' bash install-teamspeak3-server.sh
-```
-
 ## 客户端连接
 
 ```text
