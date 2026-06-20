@@ -23,7 +23,7 @@ log() {
 }
 
 fail() {
-  printf '[ts3-docker-install] ERROR: %s\n' "$*" >&2
+  printf '[ts3-docker-install] 错误: %s\n' "$*" >&2
   exit 1
 }
 
@@ -35,58 +35,57 @@ print_welcome() {
   cat <<'EOF_WELCOME'
 
 TeamSpeak 3 Server 一键部署
-开源维护者: @s1oopX
-GitHub: https://github.com/s1oopX
+开源维护者: @s1oopX (https://github.com/s1oopX)
 项目地址: https://github.com/s1oopX/teamspeak3-vps-oneclick
 
-本脚本将帮助你在 VPS 上部署 TeamSpeak 3 Server，并尽量只暴露客户端必需端口。
+本脚本将在部署机上生成 Docker Compose 配置、启动 TeamSpeak 3 Server，并默认只开放客户端必需端口。
 
 EOF_WELCOME
 }
 
 prompt_server_password_choice() {
   if [ -n "$TS3_SERVER_PASSWORD" ]; then
-    log "已检测到 TS3_SERVER_PASSWORD，容器启动后会自动设置服务器密码"
+    log "已通过 TS3_SERVER_PASSWORD 提供服务器密码，服务启动后将自动写入。"
     return
   fi
 
   if ! is_interactive; then
-    log "当前不是交互式终端；未提供 TS3_SERVER_PASSWORD 时服务器密码将保持为空"
+    log "当前不是交互式终端，且未提供 TS3_SERVER_PASSWORD；服务器将保持无密码连接。"
     return
   fi
 
   local choice password confirm
   cat <<'EOF_PASSWORD'
-请选择服务器密码设置方式:
-  1) 自定义服务器密码
+请选择服务器连接密码设置方式:
+  1) 设置自定义密码
   2) 不设置密码
 EOF_PASSWORD
 
   while true; do
-    read -r -p "请输入选项 [1/2] (默认 2): " choice
+    read -r -p "请选择 [1/2] (默认 2): " choice
     choice="${choice:-2}"
     case "$choice" in
       1)
         while true; do
-          read -r -s -p "请输入服务器密码: " password
+          read -r -s -p "请输入服务器连接密码: " password
           printf '\n'
           if [ -z "$password" ]; then
             printf '密码不能为空；如果不需要密码，请返回选择 2。\n'
             continue
           fi
-          read -r -s -p "请再次输入服务器密码: " confirm
+          read -r -s -p "请再次输入服务器连接密码: " confirm
           printf '\n'
           if [ "$password" != "$confirm" ]; then
             printf '两次输入不一致，请重新输入。\n'
             continue
           fi
           TS3_SERVER_PASSWORD="$password"
-          log "服务器密码已确认；稍后会通过本地 ServerQuery 写入，不会保存到 .env"
+          log "服务器密码已确认，稍后将通过部署机本地 ServerQuery 写入；不会保存到 .env。"
           return
         done
         ;;
       2)
-        log "本次不设置服务器密码；TeamSpeak 客户端连接时密码留空"
+        log "本次不设置服务器密码，TeamSpeak 客户端连接时密码留空。"
         return
         ;;
       *)
@@ -106,19 +105,19 @@ run_stage() {
 [${number}/8] ${title}
 EOF_STAGE
 
-  log "处理中：${title}"
+  log "开始：${title}"
   "$@"
-  log "已完成：${title}"
+  log "完成：${title}"
 }
 
 require_root() {
   if [ "${EUID:-$(id -u)}" -ne 0 ]; then
-    fail "run this script as root, for example: sudo bash install-teamspeak3-server.sh"
+    fail "请使用 root 权限运行，例如：sudo bash install-teamspeak3-server.sh"
   fi
 }
 
 require_command() {
-  command -v "$1" >/dev/null 2>&1 || fail "missing required command: $1"
+  command -v "$1" >/dev/null 2>&1 || fail "缺少必要命令：$1"
 }
 
 redact_sensitive_logs() {
@@ -130,19 +129,19 @@ redact_sensitive_logs() {
 }
 
 check_platform() {
-  [ -r /etc/os-release ] || fail "missing /etc/os-release"
+  [ -r /etc/os-release ] || fail "未找到 /etc/os-release，无法识别系统。"
   # shellcheck disable=SC1091
   . /etc/os-release
 
   case "${ID:-}:${ID_LIKE:-}" in
     *ubuntu*|*debian*) ;;
-    *) log "warning: ${PRETTY_NAME:-unknown OS} is not the primary tested platform" ;;
+    *) log "提醒：${PRETTY_NAME:-未知系统} 不是主要验证平台，将继续尝试部署。" ;;
   esac
 
   case "$(uname -m)" in
     x86_64|amd64) TS3_IMAGE_PLATFORM="linux/amd64" ;;
     aarch64|arm64) TS3_IMAGE_PLATFORM="linux/arm64" ;;
-    *) fail "unsupported architecture: $(uname -m)" ;;
+    *) fail "暂不支持当前 CPU 架构：$(uname -m)" ;;
   esac
 
   log "已识别 Docker 镜像平台: ${TS3_IMAGE_PLATFORM}"
@@ -150,10 +149,10 @@ check_platform() {
 
 check_docker() {
   require_command docker
-  docker compose version >/dev/null 2>&1 || fail "missing Docker Compose plugin: docker compose"
+  docker compose version >/dev/null 2>&1 || fail "缺少 Docker Compose 插件：docker compose"
 
   if ! docker info >/dev/null 2>&1; then
-    fail "docker is installed but not usable. Check docker.service or run this script with sudo."
+    fail "Docker 已安装但当前不可用，请检查 docker.service，或确认脚本已通过 sudo/root 执行。"
   fi
 }
 
@@ -166,10 +165,10 @@ check_existing_container_name() {
 
   existing_project="$(docker inspect -f '{{with index .Config.Labels "com.docker.compose.project"}}{{.}}{{end}}' "$existing_id" 2>/dev/null || true)"
   if [ "$existing_project" != "$TS3_COMPOSE_PROJECT" ]; then
-    fail "container name ${TS3_CONTAINER_NAME} is already used by a non-matching Docker container. Remove or rename it before installing."
+    fail "容器名 ${TS3_CONTAINER_NAME} 已被其他 Docker 容器占用，请先移除或重命名后再安装。"
   fi
 
-  log "found existing container from compose project ${TS3_COMPOSE_PROJECT}; treating this as an update/re-run"
+  log "检测到现有 ${TS3_COMPOSE_PROJECT} 部署，将按重复执行/更新流程处理。"
 }
 
 image_manifest_ok() {
@@ -229,13 +228,13 @@ select_image() {
 
   local candidate
   for candidate in "$TS3_IMAGE_DEFAULT" $TS3_IMAGE_FALLBACKS; do
-    log "检测镜像可用性和平台支持 (${TS3_IMAGE_PLATFORM}): ${candidate}"
+    log "检测镜像可用性及平台支持 (${TS3_IMAGE_PLATFORM}): ${candidate}"
     if image_manifest_ok "$candidate"; then
       TS3_IMAGE="$candidate"
       log "已选择镜像: ${TS3_IMAGE}"
       return
     fi
-    log "当前 VPS 无法访问该镜像，或镜像不支持 ${TS3_IMAGE_PLATFORM}: ${candidate}"
+    log "当前镜像不可用或不支持 ${TS3_IMAGE_PLATFORM}，继续尝试下一个镜像。"
   done
 
   fail "没有找到适用于 ${TS3_IMAGE_PLATFORM} 的可访问 TeamSpeak 镜像。请通过 TS3_IMAGE 指定兼容镜像。"
@@ -251,22 +250,22 @@ check_port_free() {
     case "$proto" in
       udp) ss_proto="-u" ;;
       tcp) ss_proto="-t" ;;
-      *) fail "unsupported protocol for port check: $proto" ;;
+      *) fail "不支持的端口检查协议：$proto" ;;
     esac
 
     if ss -H -l -n "$ss_proto" "sport = :${port}" 2>/dev/null | grep -q .; then
       if docker ps --filter "name=^/${TS3_CONTAINER_NAME}$" --format '{{.Names}}' | grep -Fxq "$TS3_CONTAINER_NAME" &&
         docker port "$TS3_CONTAINER_NAME" "${container_port}/${proto}" 2>/dev/null | awk -F: '{print $NF}' | grep -Fxq "$port"; then
-        log "port ${port}/${proto} is already used by ${TS3_CONTAINER_NAME}; allowing re-run"
+        log "端口 ${port}/${proto} 已由 ${TS3_CONTAINER_NAME} 使用，允许重复执行。"
         return
       fi
-      fail "port ${port}/${proto} appears to be in use"
+      fail "端口 ${port}/${proto} 已被占用，请释放端口后再运行。"
     fi
   fi
 }
 
 write_project_files() {
-  log "创建项目目录: ${TS3_PROJECT_DIR}"
+  log "准备部署目录: ${TS3_PROJECT_DIR}"
   mkdir -p "$TS3_PROJECT_DIR" "$TS3_DATA_DIR"
   chown "${TS3_CONTAINER_UID}:${TS3_CONTAINER_GID}" "$TS3_DATA_DIR"
   chmod 775 "$TS3_DATA_DIR"
@@ -301,23 +300,23 @@ EOF_COMPOSE
 
 configure_ufw() {
   if ! command -v ufw >/dev/null 2>&1; then
-    log "未安装 ufw，跳过本机防火墙配置"
+    log "未检测到 ufw，跳过部署机防火墙配置。"
     return
   fi
 
   if ufw status | grep -qi '^Status: active'; then
-    log "配置 ufw 防火墙规则"
+    log "配置部署机 ufw 防火墙规则。"
     ufw allow "${TS3_VOICE_PORT}/udp" comment 'TeamSpeak voice' >/dev/null
     ufw allow "${TS3_FILE_PORT}/tcp" comment 'TeamSpeak file transfer' >/dev/null
     case "$TS3_QUERY_BIND" in
       0.0.0.0|"::") ufw allow "${TS3_QUERY_PORT}/tcp" comment 'TeamSpeak ServerQuery' >/dev/null ;;
       *)
-        log "ServerQuery 绑定到 ${TS3_QUERY_BIND}，不会公网放行 ${TS3_QUERY_PORT}/tcp"
+        log "ServerQuery 仅监听 ${TS3_QUERY_BIND}，不会公网放行 ${TS3_QUERY_PORT}/tcp。"
         ufw --force delete allow "${TS3_QUERY_PORT}/tcp" >/dev/null 2>&1 || true
         ;;
     esac
   else
-    log "ufw 已安装但未启用，跳过本机防火墙配置"
+    log "ufw 已安装但未启用，跳过部署机防火墙配置。"
   fi
 }
 
@@ -370,10 +369,10 @@ get_admin_token_lines() {
 
 print_admin_token_command() {
   cat <<EOF_TOKEN_COMMAND
-稍后获取管理员一次性 Token:
+稍后可在部署机上获取管理员一次性 Token:
   $(admin_token_command)
 
-建议保存。首次获得服务器管理员权限需要它。
+建议尽快获取并妥善保存；它用于首次授予服务器管理员权限。
 EOF_TOKEN_COMMAND
 }
 
@@ -384,20 +383,22 @@ print_admin_token_now() {
   if [ -n "$token_lines" ]; then
     cat <<'EOF_TOKEN_NOTICE'
 
-管理员一次性 Token 已找到:
+管理员一次性 Token:
 
 EOF_TOKEN_NOTICE
     printf '%s\n' "$token_lines"
     cat <<'EOF_TOKEN_IMPORTANT'
 
-用途:
-  连接服务器后，在 TeamSpeak 客户端的 Permissions -> Use Privilege Key / Use Token 使用。
-  请妥善保存，不要公开分享；使用后通常会失效。
+使用位置:
+  连接服务器后，在 TeamSpeak 客户端的 Permissions -> Use Privilege Key / Use Token 中使用。
+
+重要提醒:
+  该 Token 用于首次授予服务器管理员权限，请妥善保存，不要公开分享；使用后通常会失效。
 
 EOF_TOKEN_IMPORTANT
   else
     cat <<EOF_TOKEN
-暂时没有检测到管理员 Token 日志。请等待 10-30 秒后在 VPS 上运行:
+暂未检测到管理员 Token 日志。请等待 10-30 秒后在部署机上运行:
   $(admin_token_command)
 EOF_TOKEN
   fi
@@ -406,19 +407,19 @@ EOF_TOKEN
 prompt_admin_token_choice() {
   cat <<'EOF_TOKEN_CHOICE'
 是否现在获取管理员一次性 Token?
-  1) 获取
-  2) 暂时不
+  1) 获取并显示
+  2) 暂时不获取
 EOF_TOKEN_CHOICE
 
   if ! is_interactive; then
-    log "当前不是交互式终端；不会自动显示管理员 Token"
+    log "当前不是交互式终端，跳过管理员 Token 显示。"
     print_admin_token_command
     return
   fi
 
   local choice
   while true; do
-    read -r -p "请输入选项 [1/2] (默认 2): " choice
+    read -r -p "请选择 [1/2] (默认 2): " choice
     choice="${choice:-2}"
     case "$choice" in
       1)
@@ -437,14 +438,14 @@ EOF_TOKEN_CHOICE
 }
 
 start_compose() {
-  log "正在拉取镜像: ${TS3_IMAGE}；首次部署可能需要几分钟"
+  log "拉取镜像: ${TS3_IMAGE}。首次部署可能需要几分钟。"
   docker compose \
     --project-name "$TS3_COMPOSE_PROJECT" \
     --env-file "${TS3_PROJECT_DIR}/.env" \
     -f "${TS3_PROJECT_DIR}/compose.yaml" \
     pull
 
-  log "正在启动 TeamSpeak 容器"
+  log "启动 TeamSpeak 容器。"
   docker compose \
     --project-name "$TS3_COMPOSE_PROJECT" \
     --env-file "${TS3_PROJECT_DIR}/.env" \
@@ -464,7 +465,7 @@ verify_container_running() {
   running="$(docker inspect -f '{{.State.Running}}' "$TS3_CONTAINER_NAME" 2>/dev/null || true)"
   if [ "$running" != "true" ]; then
     docker logs --tail=120 "$TS3_CONTAINER_NAME" 2>&1 | redact_sensitive_logs || true
-    fail "container ${TS3_CONTAINER_NAME} is not running after startup"
+    fail "容器 ${TS3_CONTAINER_NAME} 启动后未保持运行，请根据上方日志排查。"
   fi
 }
 
@@ -489,10 +490,10 @@ set_server_password_if_requested() {
   local query_password
   query_password="$(docker logs "$TS3_CONTAINER_NAME" 2>&1 | sed -n 's/.*loginname= "serveradmin", password= "\([^"]*\)".*/\1/p' | tail -1 || true)"
   if [ -z "$query_password" ]; then
-    fail "TS3_SERVER_PASSWORD was set, but the ServerQuery admin password was not found in container logs"
+    fail "已设置 TS3_SERVER_PASSWORD，但未能从容器日志中找到 ServerQuery 管理员密码。"
   fi
 
-  log "正在通过本地 ServerQuery 设置 TeamSpeak 服务器密码"
+  log "通过部署机本地 ServerQuery 写入 TeamSpeak 服务器密码。"
   TS3_QUERY_PORT_VALUE="$TS3_QUERY_PORT" \
   TS3_QUERY_PASSWORD="$query_password" \
   TS3_SERVER_PASSWORD_VALUE="$TS3_SERVER_PASSWORD" \
@@ -545,13 +546,13 @@ for _ in range(12):
             sock.recv(4096)
             result = send(sock, f"login serveradmin {escape(query_password)}")
             if "error id=0" not in result:
-                raise RuntimeError(f"ServerQuery login failed: {result.strip()}")
+                raise RuntimeError(f"ServerQuery 登录失败: {result.strip()}")
             result = send(sock, "use sid=1")
             if "error id=0" not in result:
-                raise RuntimeError(f"ServerQuery use sid=1 failed: {result.strip()}")
+                raise RuntimeError(f"ServerQuery 选择虚拟服务器失败: {result.strip()}")
             result = send(sock, f"serveredit virtualserver_password={escape(server_password)}")
             if "error id=0" not in result:
-                raise RuntimeError(f"ServerQuery serveredit failed: {result.strip()}")
+                raise RuntimeError(f"ServerQuery 写入服务器配置失败: {result.strip()}")
             send(sock, "quit")
             print("TeamSpeak 服务器密码已设置")
             sys.exit(0)
@@ -559,7 +560,7 @@ for _ in range(12):
         last_error = exc
         time.sleep(2)
 
-print(f"failed to set server password: {last_error}", file=sys.stderr)
+print(f"设置 TeamSpeak 服务器密码失败: {last_error}", file=sys.stderr)
 sys.exit(1)
 PY
 }
@@ -586,7 +587,7 @@ print_next_steps() {
   if [ -n "$TS3_SERVER_PASSWORD" ]; then
     server_password_status="已设置"
   else
-    server_password_status="未设置；客户端连接时留空"
+    server_password_status="未设置，客户端连接时留空"
   fi
 
   cat <<EOF_NEXT
@@ -595,15 +596,16 @@ print_next_steps() {
 
 TeamSpeak 客户端连接信息:
   地址: ${client_address}
-  端口: ${TS3_VOICE_PORT}/udp
+  端口: ${TS3_VOICE_PORT} (UDP)
   密码: ${server_password_status}
 
-管理信息:
+部署信息:
   项目目录: ${TS3_PROJECT_DIR}
   状态检查: sudo docker compose --project-name ${TS3_COMPOSE_PROJECT} --env-file ${TS3_PROJECT_DIR}/.env -f ${TS3_PROJECT_DIR}/compose.yaml ps
 
-安全组提醒:
-  放行 ${TS3_VOICE_PORT}/udp 和 ${TS3_FILE_PORT}/tcp；默认不要公网放行 ${TS3_QUERY_PORT}/tcp。
+云安全组提醒:
+  请放行 ${TS3_VOICE_PORT}/udp 和 ${TS3_FILE_PORT}/tcp。
+  默认不要公网放行 ${TS3_QUERY_PORT}/tcp；该端口是 ServerQuery 管理接口。
 
 EOF_NEXT
 

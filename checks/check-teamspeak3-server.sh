@@ -61,38 +61,38 @@ detect_public_ip() {
   fi
 }
 
-section "system"
+section "系统信息"
 if [ -r /etc/os-release ]; then
   # shellcheck disable=SC1091
   . /etc/os-release
-  printf 'OS: %s\n' "${PRETTY_NAME:-unknown}"
+  printf '系统: %s\n' "${PRETTY_NAME:-未知}"
 fi
-printf 'Arch: %s\n' "$(uname -m)"
-printf 'User: %s\n' "$(whoami)"
+printf '架构: %s\n' "$(uname -m)"
+printf '用户: %s\n' "$(whoami)"
 
-section "docker"
+section "Docker"
 if has docker; then
   docker --version || true
   docker compose version || true
   docker info --format 'ServerVersion={{.ServerVersion}} StorageDriver={{.Driver}} CgroupDriver={{.CgroupDriver}}' || true
 else
-  printf 'docker not found\n'
+  printf '未检测到 docker\n'
 fi
 
-section "project files"
+section "项目文件"
 for path in \
   "$TS3_PROJECT_DIR" \
   "$TS3_PROJECT_DIR/.env" \
   "$TS3_PROJECT_DIR/compose.yaml" \
   "$TS3_DATA_DIR"; do
   if [ -e "$path" ]; then
-    printf 'OK      %s\n' "$path"
+    printf '存在  %s\n' "$path"
   else
-    printf 'MISSING %s\n' "$path"
+    printf '缺失  %s\n' "$path"
   fi
 done
 
-section "compose ps"
+section "Compose 状态"
 if has docker && [ -d "$TS3_PROJECT_DIR" ]; then
   docker compose \
     --project-name "$TS3_COMPOSE_PROJECT" \
@@ -101,58 +101,58 @@ if has docker && [ -d "$TS3_PROJECT_DIR" ]; then
     ps || true
 fi
 
-section "container"
+section "容器"
 if has docker; then
   docker ps -a --filter "name=^/${TS3_CONTAINER_NAME}$" --format 'table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}' || true
 fi
 
-section "listening ports"
+section "监听端口"
 if has ss; then
   ss -tulpen | grep -E "(:${TS3_VOICE_PORT}|:${TS3_QUERY_PORT}|:${TS3_FILE_PORT})\\b" || true
 else
-  printf 'ss not found\n'
+  printf '未检测到 ss，跳过端口监听检查。\n'
 fi
 
-section "ufw"
+section "ufw 防火墙"
 if has ufw; then
   ufw status verbose || true
 else
-  printf 'ufw not installed\n'
+  printf '未检测到 ufw。\n'
 fi
 
-section "cloud security group reminder"
+section "云安全组提醒"
 cat <<EOF_REMINDER
-Make sure your VPS provider security group allows:
-  ${TS3_VOICE_PORT}/udp  Voice, required by TeamSpeak official port table
-  ${TS3_FILE_PORT}/tcp  Filetransfer, required by TeamSpeak official port table
-  ${TS3_QUERY_PORT}/tcp  ServerQuery raw, optional; public only when TS3_QUERY_BIND=0.0.0.0 and restricted to trusted source IPs
+请确认云厂商安全组已放行:
+  ${TS3_VOICE_PORT}/udp  语音连接，TeamSpeak 客户端必需
+  ${TS3_FILE_PORT}/tcp  文件传输，建议放行
+  ${TS3_QUERY_PORT}/tcp  ServerQuery 管理接口，默认不要公网放行
 EOF_REMINDER
 
-section "local TeamSpeak client connection"
+section "客户端连接信息"
 detect_public_ip
 if [ "$TS3_VOICE_PORT" = "9987" ]; then
-  printf 'Server address:  %s\n' "${PUBLIC_IP:-<your-vps-public-ip>}"
+  printf '地址: %s\n' "${PUBLIC_IP:-<your-vps-public-ip>}"
 else
-  printf 'Server address:  %s:%s\n' "${PUBLIC_IP:-<your-vps-public-ip>}" "$TS3_VOICE_PORT"
+  printf '地址: %s:%s\n' "${PUBLIC_IP:-<your-vps-public-ip>}" "$TS3_VOICE_PORT"
 fi
-printf 'Voice port:      %s/udp\n' "$TS3_VOICE_PORT"
+printf '端口: %s (UDP)\n' "$TS3_VOICE_PORT"
 if [ -n "$TS3_SERVER_PASSWORD" ]; then
-  printf 'Server password: provided by current TS3_SERVER_PASSWORD environment\n'
+  printf '密码: 当前环境已提供 TS3_SERVER_PASSWORD\n'
 else
-  printf 'Server password: blank by default; use the password you set during install if TS3_SERVER_PASSWORD was used\n'
+  printf '密码: 默认留空；如果安装时设置过密码，请使用当时的密码\n'
 fi
-printf 'Privilege key:   check admin token hint below, then use it in the TeamSpeak client after first login\n'
+printf '管理员 Token: 如需首次授予管理员权限，请查看下方 Token 线索。\n'
 
-section "recent logs"
+section "最近日志"
 if container_exists; then
   docker logs --tail=120 "$TS3_CONTAINER_NAME" 2>&1 | redact_sensitive_logs || true
 else
-  printf 'container not found: %s\n' "$TS3_CONTAINER_NAME"
+  printf '未找到容器：%s\n' "$TS3_CONTAINER_NAME"
 fi
 
-section "admin token hint"
+section "管理员 Token 线索"
 if container_exists; then
   docker logs "$TS3_CONTAINER_NAME" 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password' | tail -30 || true
 else
-  printf 'container not found: %s\n' "$TS3_CONTAINER_NAME"
+  printf '未找到容器：%s\n' "$TS3_CONTAINER_NAME"
 fi
