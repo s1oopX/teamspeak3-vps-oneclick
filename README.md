@@ -69,7 +69,7 @@ Nickname: 自己填写
 首次管理员 token 查看方式：
 
 ```bash
-sudo docker logs teamspeak3 2>&1 | grep -Ei 'token|privilege|serveradmin|password'
+sudo docker logs teamspeak3 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password'
 ```
 
 进入服务器后，在 TeamSpeak 客户端中使用：
@@ -116,13 +116,15 @@ sudo bash install-teamspeak3-server.sh
 卸载但保留持久化数据：
 
 ```bash
-sudo bash scripts/uninstall-teamspeak3-server.sh
+curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main/scripts/uninstall-teamspeak3-server.sh -o uninstall-teamspeak3-server.sh
+sudo bash uninstall-teamspeak3-server.sh
 ```
 
 卸载并删除持久化数据：
 
 ```bash
-sudo TS3_REMOVE_DATA=true bash scripts/uninstall-teamspeak3-server.sh
+curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main/scripts/uninstall-teamspeak3-server.sh -o uninstall-teamspeak3-server.sh
+sudo TS3_REMOVE_DATA=true bash uninstall-teamspeak3-server.sh
 ```
 
 ## 配置项
