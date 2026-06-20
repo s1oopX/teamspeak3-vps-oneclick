@@ -28,7 +28,7 @@ fail() {
 
 require_root() {
   if [ "${EUID:-$(id -u)}" -ne 0 ]; then
-    fail "run this script as root, for example: sudo bash scripts/install-teamspeak3-server.sh"
+    fail "run this script as root, for example: sudo bash install-teamspeak3-server.sh"
   fi
 }
 
