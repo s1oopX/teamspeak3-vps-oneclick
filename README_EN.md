@@ -9,7 +9,7 @@
 ![Debian](https://img.shields.io/badge/Debian-12-A81D33?logo=debian&logoColor=white)
 ![License](https://img.shields.io/github/license/s1oopX/teamspeak3-vps-oneclick)
 
-A one-click TeamSpeak 3 Server deployment script for Linux VPS instances, maintained by open-source maintainer [@s1oopX](https://github.com/s1oopX). The project uses Docker Compose, exposes only client-required ports by default, and keeps the ServerQuery management interface bound to localhost.
+A one-click TeamSpeak 3 Server deployment script for Linux VPS instances, maintained by open-source maintainer [@s1oopX](https://github.com/s1oopX). The project uses Docker Compose, exposes only client-required ports by default, and keeps the ServerQuery management interface limited to the deployment host's loopback interface.
 
 ## Features
 
@@ -74,7 +74,7 @@ Use it in the TeamSpeak client through `Permissions -> Use Token`.
 | UDP | 9987 | Voice connection |
 | TCP | 30033 | File transfer |
 
-Do not expose `10011/tcp` publicly by default. It is the ServerQuery management interface, and this project binds it to `127.0.0.1`.
+Do not expose `10011/tcp` publicly by default. It is the ServerQuery management interface and only listens on the deployment host's local address `127.0.0.1`.
 
 ## Common Commands
 
