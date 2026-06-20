@@ -69,7 +69,7 @@ Nickname: choose your own
 First admin token:
 
 ```bash
-sudo docker logs teamspeak3 2>&1 | grep -Ei 'token|privilege|serveradmin|password'
+sudo docker logs teamspeak3 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password'
 ```
 
 Use the token in the client:
@@ -95,7 +95,7 @@ Only expose ServerQuery when you really need remote ServerQuery tools, bots, or 
 sudo TS3_QUERY_BIND=0.0.0.0 bash install-teamspeak3-server.sh
 ```
 
-Then allow `10011/tcp` only from trusted source IPs in your cloud security group. Do not open it to `0.0.0.0/0.
+Then allow `10011/tcp` only from trusted source IPs in your cloud security group. Do not open it to `0.0.0.0/0`.
 
 ## Maintenance
 
@@ -116,13 +116,15 @@ sudo bash install-teamspeak3-server.sh
 Uninstall, keeping persistent data:
 
 ```bash
-sudo bash scripts/uninstall-teamspeak3-server.sh
+curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main/scripts/uninstall-teamspeak3-server.sh -o uninstall-teamspeak3-server.sh
+sudo bash uninstall-teamspeak3-server.sh
 ```
 
 Uninstall and remove persistent data:
 
 ```bash
-sudo TS3_REMOVE_DATA=true bash scripts/uninstall-teamspeak3-server.sh
+curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main/scripts/uninstall-teamspeak3-server.sh -o uninstall-teamspeak3-server.sh
+sudo TS3_REMOVE_DATA=true bash uninstall-teamspeak3-server.sh
 ```
 
 ## Configuration
