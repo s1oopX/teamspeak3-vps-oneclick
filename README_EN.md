@@ -53,13 +53,7 @@ Port: 9987
 Password: the password set during installation, or empty if none was set
 ```
 
-The admin one-time token can be displayed at the end of deployment or retrieved later:
-
-```bash
-sudo docker logs teamspeak3 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password'
-```
-
-Use it in the TeamSpeak client through `Permissions -> Use Token`.
+The admin one-time token grants the initial server administrator permission. Fetch it when prompted at the end of deployment, store it safely, and use it in the TeamSpeak client through `Permissions -> Use Token`.
 
 ## Ports and Security
 

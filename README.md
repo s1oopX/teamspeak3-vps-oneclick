@@ -53,13 +53,7 @@ sudo PUBLIC_IP='your-vps-public-ip' bash install-teamspeak3-server.sh
 密码: 安装时设置的密码；未设置则留空
 ```
 
-管理员一次性 Token 可在部署完成时选择获取，也可稍后查看：
-
-```bash
-sudo docker logs teamspeak3 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password'
-```
-
-在 TeamSpeak 客户端中通过 `Permissions -> Use Token` 使用。
+管理员一次性 Token 是首次获取服务器管理员权限的凭据。建议在部署完成时按脚本提示获取并妥善保存，然后在 TeamSpeak 客户端中通过 `Permissions -> Use Token` 使用。
 
 ## 端口安全
 
