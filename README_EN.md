@@ -95,7 +95,8 @@ Only expose ServerQuery when you really need remote ServerQuery tools, bots, or 
 sudo TS3_QUERY_BIND=0.0.0.0 bash install-teamspeak3-server.sh
 ```
 
-Then allow `10011/tcp` only from trusted source IPs in your cloud security group. Do not open it to `0.0.0.0/0`.
+Then allow `10011/tcp` only from trusted source IPs in your cloud security group. Do not open it to `0.0.0.0/0.
+
 ## Maintenance
 
 ```bash
