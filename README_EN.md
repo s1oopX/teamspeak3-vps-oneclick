@@ -9,6 +9,7 @@ Docker Compose one-click deployment for a self-hosted TeamSpeak 3 Server on a Li
 This project has been validated on a domestic-region Linux VPS provided by a cloud vendor, with public IPv4 access and root/sudo privileges.
 
 Because domestic-region VPS instances may experience unstable access to Docker Hub, GitHub Raw, and other overseas resources, the installer probes the official TeamSpeak image `teamspeak:3.13.8` first and then falls back to the configured mirror when needed. Actual connectivity still depends on the cloud security group, the server firewall, and the client network.
+
 ## Requirements
 
 - Ubuntu 22.04/24.04 or Debian 12.
