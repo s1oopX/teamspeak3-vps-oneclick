@@ -136,7 +136,7 @@ else
 fi
 printf 'Voice port:      %s/udp\n' "$TS3_VOICE_PORT"
 printf 'Server password: blank by default; this script does not set a server password\n'
-printf 'Privilege key:   check recent logs below, then use it in the TeamSpeak client after first login\n'
+printf 'Privilege key:   check admin token hint below, then use it in the TeamSpeak client after first login\n'
 
 section "recent logs"
 if container_exists; then
