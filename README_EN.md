@@ -4,6 +4,8 @@
 
 Docker Compose one-click deployment for a self-hosted TeamSpeak 3 Server on a Linux VPS.
 
+Open-source maintainer: [@s1oopX](https://github.com/s1oopX).
+
 ## Validation Environment
 
 This project has been validated on a domestic-region Linux VPS provided by a cloud vendor, with public IPv4 access and root/sudo privileges.
@@ -41,15 +43,31 @@ curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main
 sudo bash install-teamspeak3-server.sh
 ```
 
+At startup, the installer shows the GitHub link for [@s1oopX](https://github.com/s1oopX) and identifies the project as maintained by its open-source maintainer. It then asks you to choose:
+
+```text
+1) Set a custom server password
+2) Do not set a password
+```
+
 For long-lived production installs, prefer replacing `main` in the URL with a fixed release tag once one is available, and inspect the downloaded script before running it.
 
-To set a server password during install, still run this inside the VPS SSH session:
+To skip the interactive menu, you can still pass the server password directly inside the VPS SSH session:
 
 ```bash
 sudo TS3_SERVER_PASSWORD='change-me' bash install-teamspeak3-server.sh
 ```
 
 The password is applied through local ServerQuery after the container starts. It is not written into the generated `.env` file.
+
+After deployment, the installer prints a summary with connection details and maintenance commands, then asks whether to fetch the first admin one-time token:
+
+```text
+1) Fetch
+2) Not now
+```
+
+Choosing `1` prints the token from the container logs and explains why it matters and where to use it in the TeamSpeak client. Choosing `2` prints the later retrieval command and recommends saving the token safely.
 
 ## Check
 
@@ -71,7 +89,7 @@ Password: empty unless TS3_SERVER_PASSWORD was set
 Nickname: choose your own
 ```
 
-First admin token:
+If you choose not to fetch it at the end of deployment, you can later check the first admin token with:
 
 ```bash
 sudo docker logs teamspeak3 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password'

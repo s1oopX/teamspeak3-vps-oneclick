@@ -27,6 +27,75 @@ fail() {
   exit 1
 }
 
+is_interactive() {
+  [ -t 0 ] && [ -t 1 ]
+}
+
+print_welcome() {
+  cat <<'EOF_WELCOME'
+
+TeamSpeak 3 Server 一键部署
+开源维护者: @s1oopX
+GitHub: https://github.com/s1oopX
+项目地址: https://github.com/s1oopX/teamspeak3-vps-oneclick
+
+本脚本将帮助你在 VPS 上部署 TeamSpeak 3 Server，并尽量只暴露客户端必需端口。
+
+EOF_WELCOME
+}
+
+prompt_server_password_choice() {
+  if [ -n "$TS3_SERVER_PASSWORD" ]; then
+    log "已检测到 TS3_SERVER_PASSWORD，容器启动后会自动设置服务器密码"
+    return
+  fi
+
+  if ! is_interactive; then
+    log "当前不是交互式终端；未提供 TS3_SERVER_PASSWORD 时服务器密码将保持为空"
+    return
+  fi
+
+  local choice password confirm
+  cat <<'EOF_PASSWORD'
+请选择服务器密码设置方式:
+  1) 自定义服务器密码
+  2) 不设置密码
+EOF_PASSWORD
+
+  while true; do
+    read -r -p "请输入选项 [1/2] (默认 2): " choice
+    choice="${choice:-2}"
+    case "$choice" in
+      1)
+        while true; do
+          read -r -s -p "请输入服务器密码: " password
+          printf '\n'
+          if [ -z "$password" ]; then
+            printf '密码不能为空；如果不需要密码，请返回选择 2。\n'
+            continue
+          fi
+          read -r -s -p "请再次输入服务器密码: " confirm
+          printf '\n'
+          if [ "$password" != "$confirm" ]; then
+            printf '两次输入不一致，请重新输入。\n'
+            continue
+          fi
+          TS3_SERVER_PASSWORD="$password"
+          log "服务器密码已确认；稍后会通过本地 ServerQuery 写入，不会保存到 .env"
+          return
+        done
+        ;;
+      2)
+        log "本次不设置服务器密码；TeamSpeak 客户端连接时密码留空"
+        return
+        ;;
+      *)
+        printf '请输入 1 或 2。\n'
+        ;;
+    esac
+  done
+}
+
 require_root() {
   if [ "${EUID:-$(id -u)}" -ne 0 ]; then
     fail "run this script as root, for example: sudo bash install-teamspeak3-server.sh"
@@ -266,29 +335,92 @@ detect_public_ip() {
   fi
 }
 
-print_token_hint() {
+admin_token_command() {
+  printf 'sudo docker logs %s 2>&1 | grep -Ei '\''token|privilege'\'' | grep -Eiv '\''serveradmin|password'\''' "$TS3_CONTAINER_NAME"
+}
+
+get_admin_token_lines() {
+  docker logs "$TS3_CONTAINER_NAME" 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password' | tail -30 || true
+}
+
+print_admin_token_command() {
+  cat <<EOF_TOKEN_COMMAND
+稍后可在 VPS 上运行以下命令获取管理员一次性 Token:
+  $(admin_token_command)
+
+建议复制并妥善保存第一次管理员 Token。它用于首次进入服务器后获得管理员权限，通常只会在首次初始化日志中出现。
+EOF_TOKEN_COMMAND
+}
+
+print_admin_token_now() {
   local token_lines
-  token_lines="$(docker logs "$TS3_CONTAINER_NAME" 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password' | tail -30 || true)"
+  token_lines="$(get_admin_token_lines)"
 
   if [ -n "$token_lines" ]; then
+    cat <<'EOF_TOKEN_NOTICE'
+
+管理员一次性 Token 已找到:
+
+EOF_TOKEN_NOTICE
     printf '%s\n' "$token_lines"
+    cat <<'EOF_TOKEN_IMPORTANT'
+
+重要提示:
+  - 这个 Token 用于首次进入服务器后获得服务器管理员权限。
+  - 请不要公开分享它；使用后它会失效。
+  - 在 TeamSpeak 客户端连接服务器后，进入 Permissions -> Use Privilege Key / Use Token 使用。
+
+EOF_TOKEN_IMPORTANT
   else
     cat <<EOF_TOKEN
-No token line was detected yet. Try again after 10-30 seconds:
-  sudo docker logs ${TS3_CONTAINER_NAME} 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password'
+暂时没有检测到管理员 Token 日志。请等待 10-30 秒后在 VPS 上运行:
+  $(admin_token_command)
 EOF_TOKEN
   fi
 }
 
+prompt_admin_token_choice() {
+  cat <<'EOF_TOKEN_CHOICE'
+是否现在获取管理员一次性 Token?
+  1) 获取
+  2) 暂时不
+EOF_TOKEN_CHOICE
+
+  if ! is_interactive; then
+    log "当前不是交互式终端；不会自动显示管理员 Token"
+    print_admin_token_command
+    return
+  fi
+
+  local choice
+  while true; do
+    read -r -p "请输入选项 [1/2] (默认 2): " choice
+    choice="${choice:-2}"
+    case "$choice" in
+      1)
+        print_admin_token_now
+        return
+        ;;
+      2)
+        print_admin_token_command
+        return
+        ;;
+      *)
+        printf '请输入 1 或 2。\n'
+        ;;
+    esac
+  done
+}
+
 start_compose() {
-  log "pulling image: ${TS3_IMAGE}"
+  log "正在拉取镜像: ${TS3_IMAGE}；首次部署可能需要几分钟"
   docker compose \
     --project-name "$TS3_COMPOSE_PROJECT" \
     --env-file "${TS3_PROJECT_DIR}/.env" \
     -f "${TS3_PROJECT_DIR}/compose.yaml" \
     pull
 
-  log "starting container"
+  log "正在启动 TeamSpeak 容器"
   docker compose \
     --project-name "$TS3_COMPOSE_PROJECT" \
     --env-file "${TS3_PROJECT_DIR}/.env" \
@@ -324,7 +456,7 @@ set_server_password_if_requested() {
     fail "TS3_SERVER_PASSWORD was set, but the ServerQuery admin password was not found in container logs"
   fi
 
-  log "setting TeamSpeak server password from TS3_SERVER_PASSWORD"
+  log "正在通过本地 ServerQuery 设置 TeamSpeak 服务器密码"
   TS3_QUERY_PORT_VALUE="$TS3_QUERY_PORT" \
   TS3_QUERY_PASSWORD="$query_password" \
   TS3_SERVER_PASSWORD_VALUE="$TS3_SERVER_PASSWORD" \
@@ -416,69 +548,75 @@ print_next_steps() {
   fi
 
   if [ -n "$TS3_SERVER_PASSWORD" ]; then
-    server_password_status="set from TS3_SERVER_PASSWORD"
+    server_password_status="已设置"
   else
-    server_password_status="blank by default; this script does not set a server password"
+    server_password_status="未设置；客户端连接时留空"
   fi
 
   cat <<EOF_NEXT
 
-TeamSpeak 3 Server Docker deployment finished.
+部署完成总结
 
-Selected image:
+所选镜像:
   ${TS3_IMAGE}
 
-Project directory:
+项目目录:
   ${TS3_PROJECT_DIR}
 
-Persistent data directory:
+持久化数据目录:
   ${TS3_DATA_DIR}
 
-Container:
+容器名称:
   ${TS3_CONTAINER_NAME}
 
-Local TeamSpeak client connection:
-  Server nickname: choose any name, for example My TeamSpeak VPS
+TeamSpeak 客户端连接信息:
+  Server nickname: 可自定义，例如 My TeamSpeak VPS
   Server address:  ${client_address}
   Voice port:      ${TS3_VOICE_PORT}/udp
   Server password: ${server_password_status}
-  Your nickname:   choose any nickname in the client
+  Your nickname:   可自定义
 
-After first login:
-  Use the privilege key from the container logs to become server admin.
+首次进入服务器后:
+  使用管理员一次性 Token / Privilege Key 获取服务器管理员权限。
 
-Useful commands:
+常用维护命令:
   cd ${TS3_PROJECT_DIR}
   sudo docker compose --project-name ${TS3_COMPOSE_PROJECT} --env-file .env -f compose.yaml ps
   sudo docker compose --project-name ${TS3_COMPOSE_PROJECT} --env-file .env -f compose.yaml logs --tail=120 teamspeak
   sudo docker compose --project-name ${TS3_COMPOSE_PROJECT} --env-file .env -f compose.yaml restart
   sudo docker compose --project-name ${TS3_COMPOSE_PROJECT} --env-file .env -f compose.yaml down
 
-Ports to open in your cloud security group:
-  ${TS3_VOICE_PORT}/udp  Voice, required by TeamSpeak official port table
-  ${TS3_FILE_PORT}/tcp  Filetransfer, required by TeamSpeak official port table
-  ${TS3_QUERY_PORT}/tcp  ServerQuery raw, optional; public only when TS3_QUERY_BIND=0.0.0.0 and restricted to trusted source IPs
-
-First admin token:
-  sudo docker logs ${TS3_CONTAINER_NAME} 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password'
+云服务器安全组建议:
+  ${TS3_VOICE_PORT}/udp  语音连接，必需
+  ${TS3_FILE_PORT}/tcp  文件传输，建议放行
+  ${TS3_QUERY_PORT}/tcp  ServerQuery，可选；只有 TS3_QUERY_BIND=0.0.0.0 且限制可信来源 IP 时才公网放行
 
 EOF_NEXT
 
-  printf 'Detected first-admin related log lines:\n'
-  print_token_hint
+  prompt_admin_token_choice
 }
 
 main() {
+  print_welcome
   require_root
+  prompt_server_password_choice
+  log "第 1/8 步：检查 VPS 系统和平台"
   check_platform
+  log "第 2/8 步：检查 Docker Engine 和 Docker Compose"
   check_docker
+  log "第 3/8 步：检查是否存在可安全更新的 TeamSpeak 容器"
   check_existing_container_name
+  log "第 4/8 步：为当前平台选择可访问的 TeamSpeak 镜像"
   select_image
+  log "第 5/8 步：检查必需端口是否空闲"
   check_port_free "$TS3_VOICE_PORT" udp 9987
   check_port_free "$TS3_QUERY_PORT" tcp 10011
   check_port_free "$TS3_FILE_PORT" tcp 30033
+  log "第 6/8 步：写入 Docker Compose 项目文件"
   write_project_files
+  log "第 7/8 步：检查并配置本机防火墙规则"
   configure_ufw
+  log "第 8/8 步：启动并验证 TeamSpeak 服务"
   start_compose
   verify_container_running
   set_server_password_if_requested

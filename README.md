@@ -4,6 +4,8 @@
 
 这是一个基于 Docker Compose 的 TeamSpeak 3 Server 一键部署项目，目标是在 Linux VPS 上快速、稳定地搭建自建 TeamSpeak 服务器。
 
+开源维护者：[@s1oopX](https://github.com/s1oopX)。
+
 ## 环境说明
 
 本项目的实际部署验证环境为：某云厂商国内地域 VPS，系统为 Linux，具备公网 IPv4 和 root/sudo 权限。
@@ -41,15 +43,31 @@ curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main
 sudo bash install-teamspeak3-server.sh
 ```
 
+安装脚本开始时会显示 [@s1oopX](https://github.com/s1oopX) 的 GitHub 链接，并说明本项目由开源维护者维护。随后会让你选择：
+
+```text
+1) 自定义服务器密码
+2) 不设置密码
+```
+
 用于长期生产环境时，建议在项目发布版本后把 URL 里的 `main` 替换为固定 tag，并在执行前先查看下载的脚本内容。
 
-如果需要在安装时设置服务器密码，仍然是在 VPS SSH 会话里运行：
+如果你想跳过交互菜单，也可以在 VPS SSH 会话里直接传入服务器密码：
 
 ```bash
 sudo TS3_SERVER_PASSWORD='change-me' bash install-teamspeak3-server.sh
 ```
 
 服务器密码会在容器启动后通过本地 ServerQuery 写入，不会保存到生成的 `.env` 文件里。
+
+部署完成后，脚本会输出连接信息和维护命令，并询问是否立即获取管理员一次性 Token：
+
+```text
+1) 获取
+2) 暂时不
+```
+
+选择 `1` 会自动从容器日志里显示管理员一次性 Token，并提示它的重要性和在 TeamSpeak 客户端里的使用位置。选择 `2` 会显示稍后获取命令，并建议你妥善保存。
 
 ## 检查部署状态
 
@@ -71,7 +89,7 @@ Password: 如果安装时没有设置 TS3_SERVER_PASSWORD，这里留空
 Nickname: 自己填写
 ```
 
-首次管理员 token 查看方式：
+如果部署完成时选择了暂时不获取，之后可用下面的命令查看首次管理员 token：
 
 ```bash
 sudo docker logs teamspeak3 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password'
