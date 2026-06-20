@@ -80,24 +80,22 @@ Permissions -> Use Token
 
 ## Cloud Security Group
 
-Open these inbound rules in your cloud provider console:
+For normal TeamSpeak client usage, open only these inbound rules in your cloud provider console:
 
 | Protocol | Port | Purpose | Required |
 | --- | --- | --- | --- |
 | UDP | 9987 | Voice | Yes |
 | TCP | 30033 | File transfer | Yes |
-| TCP | 10011 | ServerQuery raw | Optional |
 
-By default, this project binds ServerQuery to `127.0.0.1:10011`, so `10011/tcp` does not need to be opened publicly for normal client usage.
+`10011/tcp` is the ServerQuery management interface, not a normal client connection port. By default, this project binds ServerQuery to `127.0.0.1:10011`, so you do not need to expose `10011/tcp` publicly in the cloud security group.
 
-To expose ServerQuery publicly, install with:
+Only expose ServerQuery when you really need remote ServerQuery tools, bots, or automation scripts. Install or reconfigure with:
 
 ```bash
 sudo TS3_QUERY_BIND=0.0.0.0 bash install-teamspeak3-server.sh
 ```
 
-Then open `10011/tcp` only to trusted source IPs.
-
+Then allow `10011/tcp` only from trusted source IPs in your cloud security group. Do not open it to `0.0.0.0/0`.
 ## Maintenance
 
 ```bash
