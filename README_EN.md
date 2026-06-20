@@ -50,6 +50,8 @@ At startup, the installer shows the GitHub link for [@s1oopX](https://github.com
 2) Do not set a password
 ```
 
+During installation, each stage first explains what it is about to do and asks you to press Enter to continue or type `q` to quit. Non-interactive terminals continue automatically.
+
 For long-lived production installs, prefer replacing `main` in the URL with a fixed release tag once one is available, and inspect the downloaded script before running it.
 
 To skip the interactive menu, you can still pass the server password directly inside the VPS SSH session:

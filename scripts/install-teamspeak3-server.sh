@@ -96,6 +96,50 @@ EOF_PASSWORD
   done
 }
 
+confirm_stage() {
+  local title="$1"
+  local description="$2"
+  local choice
+
+  cat <<EOF_STAGE
+
+${title}
+${description}
+EOF_STAGE
+
+  if ! is_interactive; then
+    log "当前不是交互式终端；自动继续执行此阶段"
+    return
+  fi
+
+  while true; do
+    read -r -p "按 Enter 继续，输入 q 退出安装: " choice
+    case "${choice:-}" in
+      "")
+        return
+        ;;
+      q|Q)
+        fail "用户已取消安装"
+        ;;
+      *)
+        printf '请按 Enter 继续，或输入 q 退出。\n'
+        ;;
+    esac
+  done
+}
+
+run_stage() {
+  local number="$1"
+  local title="$2"
+  local description="$3"
+  shift 3
+
+  confirm_stage "第 ${number}/8 步：${title}" "$description"
+  log "开始：${title}"
+  "$@"
+  log "完成：${title}"
+}
+
 require_root() {
   if [ "${EUID:-$(id -u)}" -ne 0 ]; then
     fail "run this script as root, for example: sudo bash install-teamspeak3-server.sh"
@@ -443,6 +487,18 @@ verify_container_running() {
     fail "container ${TS3_CONTAINER_NAME} is not running after startup"
   fi
 }
+
+check_required_ports() {
+  check_port_free "$TS3_VOICE_PORT" udp 9987
+  check_port_free "$TS3_QUERY_PORT" tcp 10011
+  check_port_free "$TS3_FILE_PORT" tcp 30033
+}
+
+start_and_verify_service() {
+  start_compose
+  verify_container_running
+}
+
 set_server_password_if_requested() {
   if [ -z "$TS3_SERVER_PASSWORD" ]; then
     return
@@ -600,25 +656,39 @@ main() {
   print_welcome
   require_root
   prompt_server_password_choice
-  log "第 1/8 步：检查 VPS 系统和平台"
-  check_platform
-  log "第 2/8 步：检查 Docker Engine 和 Docker Compose"
-  check_docker
-  log "第 3/8 步：检查是否存在可安全更新的 TeamSpeak 容器"
-  check_existing_container_name
-  log "第 4/8 步：为当前平台选择可访问的 TeamSpeak 镜像"
-  select_image
-  log "第 5/8 步：检查必需端口是否空闲"
-  check_port_free "$TS3_VOICE_PORT" udp 9987
-  check_port_free "$TS3_QUERY_PORT" tcp 10011
-  check_port_free "$TS3_FILE_PORT" tcp 30033
-  log "第 6/8 步：写入 Docker Compose 项目文件"
-  write_project_files
-  log "第 7/8 步：检查并配置本机防火墙规则"
-  configure_ufw
-  log "第 8/8 步：启动并验证 TeamSpeak 服务"
-  start_compose
-  verify_container_running
+
+  run_stage 1 "检查 VPS 系统和平台" \
+    "将读取系统版本和 CPU 架构，并确认所选 TeamSpeak 镜像平台是否匹配当前 VPS。" \
+    check_platform
+
+  run_stage 2 "检查 Docker Engine 和 Docker Compose" \
+    "将确认 docker 命令可用、Docker Compose 插件存在，并检查当前用户是否可以访问 Docker 服务。" \
+    check_docker
+
+  run_stage 3 "检查现有 TeamSpeak 容器" \
+    "将检查是否已有同名容器；如果属于同一 Compose 项目，会按安全重跑处理，否则会停止安装并提示你先处理冲突。" \
+    check_existing_container_name
+
+  run_stage 4 "选择可访问的 TeamSpeak 镜像" \
+    "将先检测官方镜像，再检测备用镜像，并选择当前 VPS 可访问且平台兼容的镜像。" \
+    select_image
+
+  run_stage 5 "检查必需端口是否空闲" \
+    "将检查语音、文件传输和本地 ServerQuery 端口是否已被其他服务占用。" \
+    check_required_ports
+
+  run_stage 6 "写入 Docker Compose 项目文件" \
+    "将创建项目目录、持久化数据目录、.env 和 compose.yaml；服务器密码不会写入 .env。" \
+    write_project_files
+
+  run_stage 7 "检查并配置本机防火墙规则" \
+    "如果 ufw 已启用，将放行 TeamSpeak 客户端必需端口，并保持 ServerQuery 默认不公网暴露。" \
+    configure_ufw
+
+  run_stage 8 "启动并验证 TeamSpeak 服务" \
+    "将拉取镜像、启动容器，并确认 TeamSpeak 容器处于运行状态。" \
+    start_and_verify_service
+
   set_server_password_if_requested
   print_next_steps
 }
