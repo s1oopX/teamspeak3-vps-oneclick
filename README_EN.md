@@ -39,13 +39,7 @@ curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main
 sudo bash install-teamspeak3-server.sh
 ```
 
-Optional: pass the server connection password directly.
-
-```bash
-sudo TS3_SERVER_PASSWORD='change-me' bash install-teamspeak3-server.sh
-```
-
-Optional: specify the address shown to clients when public IP detection fails.
+If the printed public address is inaccurate, specify the address shown to clients:
 
 ```bash
 sudo PUBLIC_IP='your-vps-public-ip' bash install-teamspeak3-server.sh

@@ -39,13 +39,7 @@ curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main
 sudo bash install-teamspeak3-server.sh
 ```
 
-可选：直接传入服务器连接密码。
-
-```bash
-sudo TS3_SERVER_PASSWORD='change-me' bash install-teamspeak3-server.sh
-```
-
-可选：公网 IP 自动检测失败时，指定最终展示给客户端的地址。
+公网地址显示不准确时，可手动指定脚本输出给客户端的连接地址：
 
 ```bash
 sudo PUBLIC_IP='your-vps-public-ip' bash install-teamspeak3-server.sh
