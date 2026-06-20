@@ -1,96 +1,98 @@
-# TeamSpeak 3 Server One-Click Deploy
+# TeamSpeak 3 Server 一键部署
 
-Docker Compose one-click deployment for a self-hosted TeamSpeak 3 Server on a Linux VPS.
+[English](README_EN.md)
 
-## Requirements
+这是一个基于 Docker Compose 的 TeamSpeak 3 Server 一键部署项目，目标是在 Linux VPS 上快速、稳定地搭建自建 TeamSpeak 服务器。
 
-- Ubuntu 22.04/24.04 or Debian 12.
-- Root access or sudo.
-- Docker Engine.
-- Docker Compose plugin (`docker compose`).
+## 环境要求
 
-## Quick Start
+- Ubuntu 22.04/24.04 或 Debian 12。
+- root 权限，或可使用 sudo。
+- Docker Engine。
+- Docker Compose 插件，也就是 `docker compose`。
 
-Run the install commands **inside your VPS SSH session**, not on your local computer.
+## 快速开始
 
-From your local computer, SSH into your VPS first:
+下面的安装命令必须在你的 **VPS SSH 会话里运行**，不是在本地电脑运行。
+
+先从你的本地电脑 SSH 进入 VPS：
 
 ```bash
 ssh <user>@<your-vps-public-ip>
 ```
 
-If your VPS uses a private key:
+如果你的 VPS 使用私钥登录：
 
 ```bash
 ssh -i /path/to/private-key <user>@<your-vps-public-ip>
 ```
 
-After you are inside the VPS terminal, run:
+进入 VPS 终端后，运行：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main/scripts/install-teamspeak3-server.sh -o install-teamspeak3-server.sh
 sudo bash install-teamspeak3-server.sh
 ```
 
-To set a server password during install, still run this inside the VPS SSH session:
+如果需要在安装时设置服务器密码，仍然是在 VPS SSH 会话里运行：
 
 ```bash
 sudo TS3_SERVER_PASSWORD='change-me' bash install-teamspeak3-server.sh
 ```
 
-The password is applied through local ServerQuery after the container starts. It is not written into the generated `.env` file.
+服务器密码会在容器启动后通过本地 ServerQuery 写入，不会保存到生成的 `.env` 文件里。
 
-## Check
+## 检查部署状态
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/s1oopX/teamspeak3-vps-oneclick/main/checks/check-teamspeak3-server.sh -o check-teamspeak3-server.sh
 sudo bash check-teamspeak3-server.sh
 ```
 
-## Client Connection
+## TeamSpeak 客户端连接
 
-TeamSpeak client fields:
+TeamSpeak 客户端里填写：
 
 ```text
 Server Address: <your-vps-public-ip>
 Port: 9987
-Password: empty unless TS3_SERVER_PASSWORD was set
-Nickname: choose your own
+Password: 如果安装时没有设置 TS3_SERVER_PASSWORD，这里留空
+Nickname: 自己填写
 ```
 
-First admin token:
+首次管理员 token 查看方式：
 
 ```bash
 sudo docker logs teamspeak3 2>&1 | grep -Ei 'token|privilege|serveradmin|password'
 ```
 
-Use the token in the client:
+进入服务器后，在 TeamSpeak 客户端中使用：
 
 ```text
 Permissions -> Use Token
 ```
 
-## Cloud Security Group
+## 云服务器安全组
 
-Open these inbound rules in your cloud provider console:
+需要在云厂商控制台放行以下入站规则：
 
-| Protocol | Port | Purpose | Required |
+| 协议 | 端口 | 用途 | 是否必需 |
 | --- | --- | --- | --- |
-| UDP | 9987 | Voice | Yes |
-| TCP | 30033 | File transfer | Yes |
-| TCP | 10011 | ServerQuery raw | Optional |
+| UDP | 9987 | 语音连接 | 是 |
+| TCP | 30033 | 文件传输 | 是 |
+| TCP | 10011 | ServerQuery raw | 可选 |
 
-By default, this project binds ServerQuery to `127.0.0.1:10011`, so `10011/tcp` does not need to be opened publicly for normal client usage.
+默认情况下，本项目会把 ServerQuery 绑定到 `127.0.0.1:10011`，所以普通客户端连接不需要公网开放 `10011/tcp`。
 
-To expose ServerQuery publicly, install with:
+如果你确实需要公网开放 ServerQuery，安装时使用：
 
 ```bash
 sudo TS3_QUERY_BIND=0.0.0.0 bash install-teamspeak3-server.sh
 ```
 
-Then open `10011/tcp` only to trusted source IPs.
+然后只对可信来源 IP 放行 `10011/tcp`。
 
-## Maintenance
+## 维护命令
 
 ```bash
 cd /opt/teamspeak3-docker
@@ -100,52 +102,52 @@ sudo docker compose --project-name teamspeak3 --env-file .env -f compose.yaml re
 sudo docker compose --project-name teamspeak3 --env-file .env -f compose.yaml down
 ```
 
-Re-run install safely:
+安全重复运行安装脚本：
 
 ```bash
 sudo bash install-teamspeak3-server.sh
 ```
 
-Uninstall, keeping persistent data:
+卸载但保留持久化数据：
 
 ```bash
 sudo bash scripts/uninstall-teamspeak3-server.sh
 ```
 
-Uninstall and remove persistent data:
+卸载并删除持久化数据：
 
 ```bash
 sudo TS3_REMOVE_DATA=true bash scripts/uninstall-teamspeak3-server.sh
 ```
 
-## Configuration
+## 配置项
 
-Common environment variables:
+常用环境变量：
 
-| Variable | Default | Description |
+| 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `TS3_IMAGE_DEFAULT` | `teamspeak:3.13.8` | Preferred official image |
-| `TS3_IMAGE_FALLBACKS` | `docker.m.daocloud.io/library/teamspeak:3.13.8` | Fallback images for networks where Docker Hub is unreachable |
-| `TS3_IMAGE` | empty | Force a specific image |
-| `TS3_PROJECT_DIR` | `/opt/teamspeak3-docker` | Compose project directory |
-| `TS3_DATA_DIR` | `/opt/teamspeak3-docker/data` | Persistent data directory |
-| `TS3_COMPOSE_PROJECT` | `teamspeak3` | Compose project name |
-| `TS3_CONTAINER_NAME` | `teamspeak3` | Container name |
-| `TS3_VOICE_PORT` | `9987` | Voice UDP host port |
-| `TS3_FILE_PORT` | `30033` | Filetransfer TCP host port |
-| `TS3_QUERY_PORT` | `10011` | ServerQuery TCP host port |
-| `TS3_QUERY_BIND` | `127.0.0.1` | ServerQuery host bind address |
-| `TS3_SERVER_PASSWORD` | empty | Optional server password |
-| `PUBLIC_IP` | auto-detect | Printed client connection address |
+| `TS3_IMAGE_DEFAULT` | `teamspeak:3.13.8` | 优先使用的官方镜像 |
+| `TS3_IMAGE_FALLBACKS` | `docker.m.daocloud.io/library/teamspeak:3.13.8` | Docker Hub 不可达时使用的备用镜像 |
+| `TS3_IMAGE` | 空 | 强制指定镜像 |
+| `TS3_PROJECT_DIR` | `/opt/teamspeak3-docker` | Compose 项目目录 |
+| `TS3_DATA_DIR` | `/opt/teamspeak3-docker/data` | 持久化数据目录 |
+| `TS3_COMPOSE_PROJECT` | `teamspeak3` | Compose 项目名 |
+| `TS3_CONTAINER_NAME` | `teamspeak3` | 容器名 |
+| `TS3_VOICE_PORT` | `9987` | 语音 UDP 主机端口 |
+| `TS3_FILE_PORT` | `30033` | 文件传输 TCP 主机端口 |
+| `TS3_QUERY_PORT` | `10011` | ServerQuery TCP 主机端口 |
+| `TS3_QUERY_BIND` | `127.0.0.1` | ServerQuery 监听地址 |
+| `TS3_SERVER_PASSWORD` | 空 | 可选服务器密码 |
+| `PUBLIC_IP` | 自动检测 | 输出给客户端连接使用的地址 |
 
-## Troubleshooting
+## 故障排查
 
-If the client says it cannot connect:
+如果 TeamSpeak 客户端无法连接：
 
-- Confirm the server address and port are correct.
-- Confirm cloud security group allows `9987/udp`.
-- Confirm local firewall allows `9987/udp`.
-- Run the check script.
-- Disable local proxy/TUN/VPN temporarily. TeamSpeak voice uses UDP, and some proxy/TUN setups do not forward it correctly.
+- 确认服务器地址和端口填写正确。
+- 确认云服务器安全组已经放行 `9987/udp`。
+- 确认 VPS 本机防火墙允许 `9987/udp`。
+- 运行检查脚本。
+- 临时关闭本地代理、TUN 或 VPN。TeamSpeak 语音使用 UDP，部分代理/TUN 配置不会正确转发 UDP。
 
-TCP checks for `30033` or `10011` can pass while `9987/udp` is still blocked.
+`30033/tcp` 或 `10011/tcp` 检查通过，不代表 `9987/udp` 一定可用。
