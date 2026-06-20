@@ -96,48 +96,21 @@ EOF_PASSWORD
   done
 }
 
-confirm_stage() {
-  local title="$1"
-  local description="$2"
-  local choice
-
-  cat <<EOF_STAGE
-
-${title}
-${description}
-EOF_STAGE
-
-  if ! is_interactive; then
-    log "当前不是交互式终端；自动继续执行此阶段"
-    return
-  fi
-
-  while true; do
-    read -r -p "按 Enter 继续，输入 q 退出安装: " choice
-    case "${choice:-}" in
-      "")
-        return
-        ;;
-      q|Q)
-        fail "用户已取消安装"
-        ;;
-      *)
-        printf '请按 Enter 继续，或输入 q 退出。\n'
-        ;;
-    esac
-  done
-}
-
 run_stage() {
   local number="$1"
   local title="$2"
   local description="$3"
   shift 3
 
-  confirm_stage "第 ${number}/8 步：${title}" "$description"
-  log "开始：${title}"
+  cat <<EOF_STAGE
+
+第 ${number}/8 步：${title}
+${description}
+EOF_STAGE
+
+  log "处理中：${title}"
   "$@"
-  log "完成：${title}"
+  log "已完成：${title}"
 }
 
 require_root() {
