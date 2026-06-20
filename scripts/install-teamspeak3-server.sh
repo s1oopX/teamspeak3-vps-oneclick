@@ -36,6 +36,14 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "missing required command: $1"
 }
 
+redact_sensitive_logs() {
+  sed -E \
+    -e 's/(loginname= "serveradmin", password= ")[^"]*(")/\1[REDACTED]\2/Ig' \
+    -e 's/(password[=:]?[[:space:]]*)[^[:space:]]+/\1[REDACTED]/Ig' \
+    -e 's/(token[=:]?[[:space:]]*)[^[:space:]]+/\1[REDACTED]/Ig' \
+    -e 's/(privilege key[=:]?[[:space:]]*)[^[:space:]]+/\1[REDACTED]/Ig'
+}
+
 check_platform() {
   [ -r /etc/os-release ] || fail "missing /etc/os-release"
   # shellcheck disable=SC1091
@@ -178,7 +186,10 @@ configure_ufw() {
     ufw allow "${TS3_FILE_PORT}/tcp" comment 'TeamSpeak file transfer'
     case "$TS3_QUERY_BIND" in
       0.0.0.0|"::") ufw allow "${TS3_QUERY_PORT}/tcp" comment 'TeamSpeak ServerQuery' ;;
-      *) log "ServerQuery is bound to ${TS3_QUERY_BIND}; skip public ufw rule for ${TS3_QUERY_PORT}/tcp" ;;
+      *)
+        log "ServerQuery is bound to ${TS3_QUERY_BIND}; ensure no public ufw rule remains for ${TS3_QUERY_PORT}/tcp"
+        ufw --force delete allow "${TS3_QUERY_PORT}/tcp" >/dev/null 2>&1 || true
+        ;;
     esac
   else
     log "ufw installed but inactive; skip local firewall rules"
@@ -216,14 +227,14 @@ detect_public_ip() {
 
 print_token_hint() {
   local token_lines
-  token_lines="$(docker logs "$TS3_CONTAINER_NAME" 2>&1 | grep -Ei 'token|privilege|serveradmin|password' | tail -30 || true)"
+  token_lines="$(docker logs "$TS3_CONTAINER_NAME" 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password' | tail -30 || true)"
 
   if [ -n "$token_lines" ]; then
     printf '%s\n' "$token_lines"
   else
     cat <<EOF_TOKEN
 No token line was detected yet. Try again after 10-30 seconds:
-  sudo docker logs ${TS3_CONTAINER_NAME} 2>&1 | grep -Ei 'token|privilege|serveradmin|password'
+  sudo docker logs ${TS3_CONTAINER_NAME} 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password'
 EOF_TOKEN
   fi
 }
@@ -255,7 +266,7 @@ verify_container_running() {
   local running
   running="$(docker inspect -f '{{.State.Running}}' "$TS3_CONTAINER_NAME" 2>/dev/null || true)"
   if [ "$running" != "true" ]; then
-    docker logs --tail=120 "$TS3_CONTAINER_NAME" 2>&1 || true
+    docker logs --tail=120 "$TS3_CONTAINER_NAME" 2>&1 | redact_sensitive_logs || true
     fail "container ${TS3_CONTAINER_NAME} is not running after startup"
   fi
 }
@@ -405,10 +416,10 @@ Useful commands:
 Ports to open in your cloud security group:
   ${TS3_VOICE_PORT}/udp  Voice, required by TeamSpeak official port table
   ${TS3_FILE_PORT}/tcp  Filetransfer, required by TeamSpeak official port table
-  ${TS3_QUERY_PORT}/tcp  ServerQuery raw, optional; public only when TS3_QUERY_BIND=0.0.0.0
+  ${TS3_QUERY_PORT}/tcp  ServerQuery raw, optional; public only when TS3_QUERY_BIND=0.0.0.0 and restricted to trusted source IPs
 
 First admin token:
-  sudo docker logs ${TS3_CONTAINER_NAME} 2>&1 | grep -Ei 'token|privilege|serveradmin|password'
+  sudo docker logs ${TS3_CONTAINER_NAME} 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password'
 
 EOF_NEXT
 
