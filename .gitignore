@@ -1,0 +1,8 @@
+.env
+*.local
+secrets/
+runtime/
+backups/
+*.log
+.DS_Store
+Thumbs.db
