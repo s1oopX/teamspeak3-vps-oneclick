@@ -11,7 +11,7 @@ fail() {
 }
 
 if [ "${EUID:-$(id -u)}" -ne 0 ]; then
-  fail "run this script as root, for example: sudo bash scripts/uninstall-teamspeak3-server.sh"
+  fail "run this script as root, for example: sudo bash uninstall-teamspeak3-server.sh"
 fi
 
 safe_project_dir() {
