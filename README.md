@@ -42,7 +42,7 @@ sudo bash install-teamspeak3-server.sh
 ## 客户端连接
 
 ```text
-地址: VPS公网 IP
+地址: VPS 公网 IP
 端口: 9987
 密码: 安装时设置的密码；未设置则留空
 ```
