@@ -145,7 +145,7 @@ check_platform() {
     *) fail "unsupported architecture: $(uname -m)" ;;
   esac
 
-  log "detected Docker image platform: ${TS3_IMAGE_PLATFORM}"
+  log "已识别 Docker 镜像平台: ${TS3_IMAGE_PLATFORM}"
 }
 
 check_docker() {
@@ -220,25 +220,25 @@ image_manifest_supports_platform() {
 
 select_image() {
   if [ -n "$TS3_IMAGE" ]; then
-    log "using image from TS3_IMAGE: ${TS3_IMAGE}"
+    log "使用 TS3_IMAGE 指定的镜像: ${TS3_IMAGE}"
     if ! image_manifest_ok "$TS3_IMAGE"; then
-      fail "configured image is not reachable or does not support ${TS3_IMAGE_PLATFORM}: ${TS3_IMAGE}"
+      fail "指定镜像不可访问，或不支持 ${TS3_IMAGE_PLATFORM}: ${TS3_IMAGE}"
     fi
     return
   fi
 
   local candidate
   for candidate in "$TS3_IMAGE_DEFAULT" $TS3_IMAGE_FALLBACKS; do
-    log "checking image reachability and platform support (${TS3_IMAGE_PLATFORM}): ${candidate}"
+    log "检测镜像可用性和平台支持 (${TS3_IMAGE_PLATFORM}): ${candidate}"
     if image_manifest_ok "$candidate"; then
       TS3_IMAGE="$candidate"
-      log "selected image: ${TS3_IMAGE}"
+      log "已选择镜像: ${TS3_IMAGE}"
       return
     fi
-    log "image not reachable from this server or does not support ${TS3_IMAGE_PLATFORM}: ${candidate}"
+    log "当前 VPS 无法访问该镜像，或镜像不支持 ${TS3_IMAGE_PLATFORM}: ${candidate}"
   done
 
-  fail "no reachable TeamSpeak image found for ${TS3_IMAGE_PLATFORM}. Set TS3_IMAGE to a reachable, compatible TeamSpeak image."
+  fail "没有找到适用于 ${TS3_IMAGE_PLATFORM} 的可访问 TeamSpeak 镜像。请通过 TS3_IMAGE 指定兼容镜像。"
 }
 
 check_port_free() {
@@ -266,7 +266,7 @@ check_port_free() {
 }
 
 write_project_files() {
-  log "creating project directory: ${TS3_PROJECT_DIR}"
+  log "创建项目目录: ${TS3_PROJECT_DIR}"
   mkdir -p "$TS3_PROJECT_DIR" "$TS3_DATA_DIR"
   chown "${TS3_CONTAINER_UID}:${TS3_CONTAINER_GID}" "$TS3_DATA_DIR"
   chmod 775 "$TS3_DATA_DIR"
@@ -301,23 +301,23 @@ EOF_COMPOSE
 
 configure_ufw() {
   if ! command -v ufw >/dev/null 2>&1; then
-    log "ufw not installed; skip local firewall rules"
+    log "未安装 ufw，跳过本机防火墙配置"
     return
   fi
 
   if ufw status | grep -qi '^Status: active'; then
-    log "configuring ufw rules"
-    ufw allow "${TS3_VOICE_PORT}/udp" comment 'TeamSpeak voice'
-    ufw allow "${TS3_FILE_PORT}/tcp" comment 'TeamSpeak file transfer'
+    log "配置 ufw 防火墙规则"
+    ufw allow "${TS3_VOICE_PORT}/udp" comment 'TeamSpeak voice' >/dev/null
+    ufw allow "${TS3_FILE_PORT}/tcp" comment 'TeamSpeak file transfer' >/dev/null
     case "$TS3_QUERY_BIND" in
-      0.0.0.0|"::") ufw allow "${TS3_QUERY_PORT}/tcp" comment 'TeamSpeak ServerQuery' ;;
+      0.0.0.0|"::") ufw allow "${TS3_QUERY_PORT}/tcp" comment 'TeamSpeak ServerQuery' >/dev/null ;;
       *)
-        log "ServerQuery is bound to ${TS3_QUERY_BIND}; ensure no public ufw rule remains for ${TS3_QUERY_PORT}/tcp"
+        log "ServerQuery 绑定到 ${TS3_QUERY_BIND}，不会公网放行 ${TS3_QUERY_PORT}/tcp"
         ufw --force delete allow "${TS3_QUERY_PORT}/tcp" >/dev/null 2>&1 || true
         ;;
     esac
   else
-    log "ufw installed but inactive; skip local firewall rules"
+    log "ufw 已安装但未启用，跳过本机防火墙配置"
   fi
 }
 
@@ -331,12 +331,22 @@ is_private_ipv4() {
 }
 
 detect_public_ip() {
+  local ip_service
   if [ -n "$PUBLIC_IP" ]; then
     return
   fi
 
   if command -v curl >/dev/null 2>&1; then
-    PUBLIC_IP="$(curl -fsS --connect-timeout 5 --max-time 10 https://api.ipify.org 2>/dev/null || true)"
+    for ip_service in \
+      https://api.ipify.org \
+      https://ifconfig.me/ip \
+      https://icanhazip.com; do
+      PUBLIC_IP="$(curl -fsS --connect-timeout 5 --max-time 10 "$ip_service" 2>/dev/null | tr -d '\r\n[:space:]' || true)"
+      if [ -n "$PUBLIC_IP" ] && [ "${PUBLIC_IP#*:}" = "$PUBLIC_IP" ] && ! is_private_ipv4 "$PUBLIC_IP"; then
+        return
+      fi
+      PUBLIC_IP=""
+    done
   fi
 
   if [ -z "$PUBLIC_IP" ]; then
@@ -543,7 +553,7 @@ for _ in range(12):
             if "error id=0" not in result:
                 raise RuntimeError(f"ServerQuery serveredit failed: {result.strip()}")
             send(sock, "quit")
-            print("TeamSpeak server password set")
+            print("TeamSpeak 服务器密码已设置")
             sys.exit(0)
     except Exception as exc:
         last_error = exc
