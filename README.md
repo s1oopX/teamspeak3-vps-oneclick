@@ -4,6 +4,12 @@
 
 这是一个基于 Docker Compose 的 TeamSpeak 3 Server 一键部署项目，目标是在 Linux VPS 上快速、稳定地搭建自建 TeamSpeak 服务器。
 
+## 环境说明
+
+本项目的实际部署验证环境为：中国大陆云服务商提供的中国大陆地域 VPS，系统为 Linux，具备公网 IPv4 和 root/sudo 权限。
+
+由于中国大陆地域 VPS 访问 Docker Hub、GitHub Raw 等境外资源时可能存在网络波动，安装脚本会先检测官方 TeamSpeak 镜像 `teamspeak:3.13.8` 的可达性；如不可达，再尝试配置的备用镜像。端口连通性仍以云厂商安全组、本机防火墙和客户端本地网络为准。
+
 ## 环境要求
 
 - Ubuntu 22.04/24.04 或 Debian 12。
