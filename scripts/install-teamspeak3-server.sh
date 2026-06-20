@@ -17,6 +17,7 @@ TS3_CONTAINER_GID="${TS3_CONTAINER_GID:-9987}"
 PUBLIC_IP="${PUBLIC_IP:-}"
 TS3_SERVER_PASSWORD="${TS3_SERVER_PASSWORD:-}"
 TS3_IMAGE_PLATFORM=""
+TS3_EXISTING_DEPLOYMENT=false
 
 log() {
   printf '[ts3-docker-install] %s\n' "$*"
@@ -156,6 +157,43 @@ check_docker() {
   fi
 }
 
+validate_query_bind() {
+  case "$TS3_QUERY_BIND" in
+    *:*) fail "当前脚本暂不支持 IPv6 ServerQuery 绑定，请使用 127.0.0.1 或 0.0.0.0。" ;;
+  esac
+
+  if ! printf '%s\n' "$TS3_QUERY_BIND" | awk -F. '
+    NF != 4 { exit 1 }
+    {
+      for (i = 1; i <= 4; i++) {
+        if ($i !~ /^[0-9]+$/ || $i < 0 || $i > 255) {
+          exit 1
+        }
+      }
+      exit 0
+    }
+  '; then
+    fail "TS3_QUERY_BIND 必须是 IPv4 地址，例如 127.0.0.1 或 0.0.0.0。"
+  fi
+}
+
+check_runtime_tools() {
+  check_docker
+  validate_query_bind
+
+  if [ -n "$TS3_SERVER_PASSWORD" ]; then
+    require_command python3
+    log "已确认 python3 可用于写入服务器密码。"
+  fi
+}
+
+query_connect_host() {
+  case "$TS3_QUERY_BIND" in
+    0.0.0.0) printf '127.0.0.1' ;;
+    *) printf '%s' "$TS3_QUERY_BIND" ;;
+  esac
+}
+
 check_existing_container_name() {
   local existing_id existing_project
   existing_id="$(docker ps -aq --filter "name=^/${TS3_CONTAINER_NAME}$" | head -1 || true)"
@@ -168,6 +206,7 @@ check_existing_container_name() {
     fail "容器名 ${TS3_CONTAINER_NAME} 已被其他 Docker 容器占用，请先移除或重命名后再安装。"
   fi
 
+  TS3_EXISTING_DEPLOYMENT=true
   log "检测到现有 ${TS3_COMPOSE_PROJECT} 部署，将按重复执行/更新流程处理。"
 }
 
@@ -405,6 +444,14 @@ EOF_TOKEN
 }
 
 prompt_admin_token_choice() {
+  if [ "$TS3_EXISTING_DEPLOYMENT" = "true" ]; then
+    cat <<'EOF_TOKEN_RERUN'
+检测到这是重复执行或更新部署。
+如果你已经拥有服务器管理员权限，通常不需要再次获取 Token；容器日志中的首次 Token 也可能已经使用过。
+
+EOF_TOKEN_RERUN
+  fi
+
   cat <<'EOF_TOKEN_CHOICE'
 是否现在获取管理员一次性 Token?
   1) 获取并显示
@@ -487,13 +534,15 @@ set_server_password_if_requested() {
 
   require_command python3
 
-  local query_password
+  local query_password query_host
+  query_host="$(query_connect_host)"
   query_password="$(docker logs "$TS3_CONTAINER_NAME" 2>&1 | sed -n 's/.*loginname= "serveradmin", password= "\([^"]*\)".*/\1/p' | tail -1 || true)"
   if [ -z "$query_password" ]; then
     fail "已设置 TS3_SERVER_PASSWORD，但未能从容器日志中找到 ServerQuery 管理员密码。"
   fi
 
-  log "通过部署机本地 ServerQuery 写入 TeamSpeak 服务器密码。"
+  log "通过部署机本地 ServerQuery (${query_host}:${TS3_QUERY_PORT}) 写入 TeamSpeak 服务器密码。"
+  TS3_QUERY_HOST_VALUE="$query_host" \
   TS3_QUERY_PORT_VALUE="$TS3_QUERY_PORT" \
   TS3_QUERY_PASSWORD="$query_password" \
   TS3_SERVER_PASSWORD_VALUE="$TS3_SERVER_PASSWORD" \
@@ -503,6 +552,7 @@ import socket
 import sys
 import time
 
+query_host = os.environ["TS3_QUERY_HOST_VALUE"]
 query_port = int(os.environ["TS3_QUERY_PORT_VALUE"])
 query_password = os.environ["TS3_QUERY_PASSWORD"]
 server_password = os.environ["TS3_SERVER_PASSWORD_VALUE"]
@@ -541,7 +591,7 @@ def send(sock: socket.socket, command: str) -> str:
 last_error = None
 for _ in range(12):
     try:
-        with socket.create_connection(("127.0.0.1", query_port), timeout=5) as sock:
+        with socket.create_connection((query_host, query_port), timeout=5) as sock:
             sock.settimeout(5)
             sock.recv(4096)
             result = send(sock, f"login serveradmin {escape(query_password)}")
@@ -618,7 +668,7 @@ main() {
   prompt_server_password_choice
 
   run_stage 1 "检查系统平台" check_platform
-  run_stage 2 "检查 Docker" check_docker
+  run_stage 2 "检查 Docker 与运行工具" check_runtime_tools
   run_stage 3 "检查现有容器" check_existing_container_name
   run_stage 4 "选择镜像" select_image
   run_stage 5 "检查端口" check_required_ports
