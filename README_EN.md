@@ -50,7 +50,7 @@ At startup, the installer shows the GitHub link for [@s1oopX](https://github.com
 2) Do not set a password
 ```
 
-During installation, each stage shows the current step, what it is handling, and when it completes; there are no extra confirmations in the middle.
+During installation, each stage briefly shows the current step and completion status; there are no extra confirmations in the middle.
 
 For long-lived production installs, prefer replacing `main` in the URL with a fixed release tag once one is available, and inspect the downloaded script before running it.
 

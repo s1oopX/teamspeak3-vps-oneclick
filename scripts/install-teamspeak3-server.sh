@@ -99,13 +99,11 @@ EOF_PASSWORD
 run_stage() {
   local number="$1"
   local title="$2"
-  local description="$3"
-  shift 3
+  shift 2
 
   cat <<EOF_STAGE
 
-第 ${number}/8 步：${title}
-${description}
+[${number}/8] ${title}
 EOF_STAGE
 
   log "处理中：${title}"
@@ -362,10 +360,10 @@ get_admin_token_lines() {
 
 print_admin_token_command() {
   cat <<EOF_TOKEN_COMMAND
-稍后可在 VPS 上运行以下命令获取管理员一次性 Token:
+稍后获取管理员一次性 Token:
   $(admin_token_command)
 
-建议复制并妥善保存第一次管理员 Token。它用于首次进入服务器后获得管理员权限，通常只会在首次初始化日志中出现。
+建议保存。首次获得服务器管理员权限需要它。
 EOF_TOKEN_COMMAND
 }
 
@@ -382,10 +380,9 @@ EOF_TOKEN_NOTICE
     printf '%s\n' "$token_lines"
     cat <<'EOF_TOKEN_IMPORTANT'
 
-重要提示:
-  - 这个 Token 用于首次进入服务器后获得服务器管理员权限。
-  - 请不要公开分享它；使用后它会失效。
-  - 在 TeamSpeak 客户端连接服务器后，进入 Permissions -> Use Privilege Key / Use Token 使用。
+用途:
+  连接服务器后，在 TeamSpeak 客户端的 Permissions -> Use Privilege Key / Use Token 使用。
+  请妥善保存，不要公开分享；使用后通常会失效。
 
 EOF_TOKEN_IMPORTANT
   else
@@ -584,41 +581,19 @@ print_next_steps() {
 
   cat <<EOF_NEXT
 
-部署完成总结
-
-所选镜像:
-  ${TS3_IMAGE}
-
-项目目录:
-  ${TS3_PROJECT_DIR}
-
-持久化数据目录:
-  ${TS3_DATA_DIR}
-
-容器名称:
-  ${TS3_CONTAINER_NAME}
+部署完成
 
 TeamSpeak 客户端连接信息:
-  Server nickname: 可自定义，例如 My TeamSpeak VPS
-  Server address:  ${client_address}
-  Voice port:      ${TS3_VOICE_PORT}/udp
-  Server password: ${server_password_status}
-  Your nickname:   可自定义
+  地址: ${client_address}
+  端口: ${TS3_VOICE_PORT}/udp
+  密码: ${server_password_status}
 
-首次进入服务器后:
-  使用管理员一次性 Token / Privilege Key 获取服务器管理员权限。
+管理信息:
+  项目目录: ${TS3_PROJECT_DIR}
+  状态检查: sudo docker compose --project-name ${TS3_COMPOSE_PROJECT} --env-file ${TS3_PROJECT_DIR}/.env -f ${TS3_PROJECT_DIR}/compose.yaml ps
 
-常用维护命令:
-  cd ${TS3_PROJECT_DIR}
-  sudo docker compose --project-name ${TS3_COMPOSE_PROJECT} --env-file .env -f compose.yaml ps
-  sudo docker compose --project-name ${TS3_COMPOSE_PROJECT} --env-file .env -f compose.yaml logs --tail=120 teamspeak
-  sudo docker compose --project-name ${TS3_COMPOSE_PROJECT} --env-file .env -f compose.yaml restart
-  sudo docker compose --project-name ${TS3_COMPOSE_PROJECT} --env-file .env -f compose.yaml down
-
-云服务器安全组建议:
-  ${TS3_VOICE_PORT}/udp  语音连接，必需
-  ${TS3_FILE_PORT}/tcp  文件传输，建议放行
-  ${TS3_QUERY_PORT}/tcp  ServerQuery，可选；只有 TS3_QUERY_BIND=0.0.0.0 且限制可信来源 IP 时才公网放行
+安全组提醒:
+  放行 ${TS3_VOICE_PORT}/udp 和 ${TS3_FILE_PORT}/tcp；默认不要公网放行 ${TS3_QUERY_PORT}/tcp。
 
 EOF_NEXT
 
@@ -630,37 +605,14 @@ main() {
   require_root
   prompt_server_password_choice
 
-  run_stage 1 "检查 VPS 系统和平台" \
-    "将读取系统版本和 CPU 架构，并确认所选 TeamSpeak 镜像平台是否匹配当前 VPS。" \
-    check_platform
-
-  run_stage 2 "检查 Docker Engine 和 Docker Compose" \
-    "将确认 docker 命令可用、Docker Compose 插件存在，并检查当前用户是否可以访问 Docker 服务。" \
-    check_docker
-
-  run_stage 3 "检查现有 TeamSpeak 容器" \
-    "将检查是否已有同名容器；如果属于同一 Compose 项目，会按安全重跑处理，否则会停止安装并提示你先处理冲突。" \
-    check_existing_container_name
-
-  run_stage 4 "选择可访问的 TeamSpeak 镜像" \
-    "将先检测官方镜像，再检测备用镜像，并选择当前 VPS 可访问且平台兼容的镜像。" \
-    select_image
-
-  run_stage 5 "检查必需端口是否空闲" \
-    "将检查语音、文件传输和本地 ServerQuery 端口是否已被其他服务占用。" \
-    check_required_ports
-
-  run_stage 6 "写入 Docker Compose 项目文件" \
-    "将创建项目目录、持久化数据目录、.env 和 compose.yaml；服务器密码不会写入 .env。" \
-    write_project_files
-
-  run_stage 7 "检查并配置本机防火墙规则" \
-    "如果 ufw 已启用，将放行 TeamSpeak 客户端必需端口，并保持 ServerQuery 默认不公网暴露。" \
-    configure_ufw
-
-  run_stage 8 "启动并验证 TeamSpeak 服务" \
-    "将拉取镜像、启动容器，并确认 TeamSpeak 容器处于运行状态。" \
-    start_and_verify_service
+  run_stage 1 "检查系统平台" check_platform
+  run_stage 2 "检查 Docker" check_docker
+  run_stage 3 "检查现有容器" check_existing_container_name
+  run_stage 4 "选择镜像" select_image
+  run_stage 5 "检查端口" check_required_ports
+  run_stage 6 "写入配置" write_project_files
+  run_stage 7 "配置防火墙" configure_ufw
+  run_stage 8 "启动服务" start_and_verify_service
 
   set_server_password_if_requested
   print_next_steps
