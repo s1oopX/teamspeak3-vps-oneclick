@@ -19,6 +19,14 @@ has() {
   command -v "$1" >/dev/null 2>&1
 }
 
+redact_sensitive_logs() {
+  sed -E \
+    -e 's/(loginname= "serveradmin", password= ")[^"]*(")/\1[REDACTED]\2/Ig' \
+    -e 's/(password[=:]?[[:space:]]*)[^[:space:]]+/\1[REDACTED]/Ig' \
+    -e 's/(token[=:]?[[:space:]]*)[^[:space:]]+/\1[REDACTED]/Ig' \
+    -e 's/(privilege key[=:]?[[:space:]]*)[^[:space:]]+/\1[REDACTED]/Ig'
+}
+
 container_exists() {
   has docker && docker ps -a --filter "name=^/${TS3_CONTAINER_NAME}$" --format '{{.Names}}' | grep -Fxq "$TS3_CONTAINER_NAME"
 }
@@ -116,7 +124,7 @@ cat <<EOF_REMINDER
 Make sure your VPS provider security group allows:
   ${TS3_VOICE_PORT}/udp  Voice, required by TeamSpeak official port table
   ${TS3_FILE_PORT}/tcp  Filetransfer, required by TeamSpeak official port table
-  ${TS3_QUERY_PORT}/tcp  ServerQuery raw, optional; public only when TS3_QUERY_BIND=0.0.0.0
+  ${TS3_QUERY_PORT}/tcp  ServerQuery raw, optional; public only when TS3_QUERY_BIND=0.0.0.0 and restricted to trusted source IPs
 EOF_REMINDER
 
 section "local TeamSpeak client connection"
@@ -132,14 +140,14 @@ printf 'Privilege key:   check recent logs below, then use it in the TeamSpeak c
 
 section "recent logs"
 if container_exists; then
-  docker logs --tail=120 "$TS3_CONTAINER_NAME" 2>&1 || true
+  docker logs --tail=120 "$TS3_CONTAINER_NAME" 2>&1 | redact_sensitive_logs || true
 else
   printf 'container not found: %s\n' "$TS3_CONTAINER_NAME"
 fi
 
 section "admin token hint"
 if container_exists; then
-  docker logs "$TS3_CONTAINER_NAME" 2>&1 | grep -Ei 'token|privilege|serveradmin|password' | tail -30 || true
+  docker logs "$TS3_CONTAINER_NAME" 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serveradmin|password' | tail -30 || true
 else
   printf 'container not found: %s\n' "$TS3_CONTAINER_NAME"
 fi
