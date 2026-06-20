@@ -96,6 +96,7 @@ sudo TS3_QUERY_BIND=0.0.0.0 bash install-teamspeak3-server.sh
 ```
 
 随后在云厂商安全组里只对可信来源 IP 放行 `10011/tcp`，不要对 `0.0.0.0/0` 全网开放。
+
 ## 维护命令
 
 ```bash
