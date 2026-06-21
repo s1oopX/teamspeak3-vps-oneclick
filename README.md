@@ -10,7 +10,8 @@
 ![License](https://img.shields.io/github/license/s1oopX/teamspeak3-vps-oneclick)
 
 面向 Linux VPS 的 TeamSpeak 3 Server 一键部署脚本，由开源维护者 [@s1oopX](https://github.com/s1oopX) 维护。项目基于 Docker Compose，默认仅开放客户端必需端口，并将 ServerQuery 管理接口限制为仅部署机本地访问。
-[LIUNX DO](https://linux.do/)— 新的理想型社区
+
+[LIUNX DO](https://linux.do/)————新的理想型社区
 
 ## 功能特性
 
