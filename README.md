@@ -8,10 +8,10 @@
 支持国内源自动降级、密码内存注入防泄漏、权限自动修复与无损幂等更新。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Shell](https://img.shields.io/badge/Shell-Bash%205+-4EAA25?logo=gnubash&logoColor=white)](scripts/install-teamspeak3-server.sh)
-[![Docker Compose](https://img.shields.io/badge/Docker%20Compose-v2+-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
-[![TeamSpeak](https://img.shields.io/badge/TeamSpeak_3-Server%203.13.8-2580C3?logo=teamspeak&logoColor=white)](https://teamspeak.com)
-[![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Debian-E95420?logo=ubuntu&logoColor=white)](#环境要求与目录)
+[![Shell](https://img.shields.io/badge/Shell-Bash%205+-4EAA25.svg?logo=gnubash&logoColor=white)](scripts/install-teamspeak3-server.sh)
+[![Docker Compose](https://img.shields.io/badge/Docker%20Compose-v2+-2496ED.svg?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
+[![TeamSpeak](https://img.shields.io/badge/TeamSpeak_3-Server%203.13.8-2580C3.svg?logo=teamspeak&logoColor=white)](https://teamspeak.com)
+[![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Debian-E95420.svg?logo=ubuntu&logoColor=white)](#环境要求与目录)
 [![Security](https://img.shields.io/badge/Security-Local%20Query%20Isolated-brightgreen.svg)](#关键决策)
 
 [English](README_EN.md) · [LINUX DO 社区讨论](https://linux.do/)
@@ -57,12 +57,12 @@ sudo docker logs teamspeak3 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serve
 | **TCP** | `10011`| **仅 127.0.0.1** | ServerQuery 底层管理接口（**严禁公网暴露**，防撞库提权） |
 
 ```mermaid
-%%{init: {'theme': 'neutral', 'themeVariables': { 'clusterBkg': '#ffffff', 'clusterBorder': '#d0d7de', 'primaryColor': '#f6f8fa', 'primaryBorderColor': '#d0d7de', 'lineColor': '#6e7681' }}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'edgeLabelBackground': '#ffffff', 'mainBkg': '#ffffff', 'lineColor': '#64748b' }}}%%
 flowchart LR
-    classDef client fill:#f6f8fa,stroke:#d0d7de,stroke-width:1.5px,color:#1f2328,rx:4px,ry:4px;
-    classDef safe fill:#e6ffed,stroke:#2da44e,stroke-width:1.5px,color:#1a7f37,rx:4px,ry:4px;
-    classDef warn fill:#fff0f2,stroke:#f85149,stroke-width:1.5px,color:#8e1519,rx:4px,ry:4px;
-    classDef core fill:#f0f6fc,stroke:#30363d,stroke-width:1.5px,color:#24292e,rx:4px,ry:4px;
+    classDef client fill:#ffffff,stroke:#3b82f6,stroke-width:1.5px,color:#1e40af,rx:4px,ry:4px;
+    classDef safe fill:#ffffff,stroke:#10b981,stroke-width:1.5px,color:#047857,rx:4px,ry:4px;
+    classDef warn fill:#ffffff,stroke:#ef4444,stroke-width:1.5px,color:#b91c1c,rx:4px,ry:4px;
+    classDef core fill:#ffffff,stroke:#334155,stroke-width:1.5px,color:#0f172a,rx:4px,ry:4px;
 
     U["TS3 客户端"]:::client -->|"9987/udp (语音)"| FW_U["UFW / 安全组 放行"]:::safe
     U -->|"30033/tcp (文件)"| FW_T["UFW / 安全组 放行"]:::safe
@@ -70,7 +70,6 @@ flowchart LR
     
     FW_U --> TS3["TeamSpeak 容器<br/>(UID/GID: 9987)"]:::core
     FW_T --> TS3
-    
     ADMIN["管理员 (本地 / SSH隧道)"]:::client -->|"127.0.0.1:10011"| TS3
 ```
 
