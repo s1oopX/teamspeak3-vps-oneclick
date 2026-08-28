@@ -58,19 +58,34 @@ sudo docker logs teamspeak3 2>&1 | grep -Ei 'token|privilege' | grep -Eiv 'serve
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'edgeLabelBackground': '#ffffff', 'mainBkg': '#ffffff', 'lineColor': '#64748b' }}}%%
-flowchart LR
-    classDef client fill:#ffffff,stroke:#3b82f6,stroke-width:1.5px,color:#1e40af,rx:4px,ry:4px;
-    classDef safe fill:#ffffff,stroke:#10b981,stroke-width:1.5px,color:#047857,rx:4px,ry:4px;
-    classDef warn fill:#ffffff,stroke:#ef4444,stroke-width:1.5px,color:#b91c1c,rx:4px,ry:4px;
-    classDef core fill:#ffffff,stroke:#334155,stroke-width:1.5px,color:#0f172a,rx:4px,ry:4px;
+flowchart TB
+    classDef client fill:#ffffff,stroke:#3b82f6,stroke-width:1.5px,color:#1e40af,rx:5px,ry:5px;
+    classDef safe fill:#ffffff,stroke:#10b981,stroke-width:1.5px,color:#047857,rx:5px,ry:5px;
+    classDef warn fill:#ffffff,stroke:#ef4444,stroke-width:1.5px,color:#b91c1c,rx:5px,ry:5px;
+    classDef core fill:#ffffff,stroke:#334155,stroke-width:1.5px,color:#0f172a,rx:5px,ry:5px;
 
-    U["TS3 客户端"]:::client -->|"9987/udp (语音)"| FW_U["UFW / 安全组 放行"]:::safe
-    U -->|"30033/tcp (文件)"| FW_T["UFW / 安全组 放行"]:::safe
-    ATTACKER["公网扫描 / 爆破"]:::client -.->|"10011/tcp (Query)"| FW_Q["UFW 拦截 / 127.0.0.1 隔离"]:::warn
-    
-    FW_U --> TS3["TeamSpeak 容器<br/>(UID/GID: 9987)"]:::core
+    %% 1. 访问来源 (顶层)
+    U["正常用户 (TS3 客户端)"]:::client
+    ATTACKER["公网威胁 (端口扫描 / 爆破脚本)"]:::warn
+
+    %% 2. 安全组与防火墙策略矩阵 (中层并排)
+    FW_U["9987/udp (语音核心)<br/>UFW / 安全组放行"]:::safe
+    FW_T["30033/tcp (文件传输)<br/>UFW / 安全组放行"]:::safe
+    FW_Q["10011/tcp (ServerQuery)<br/>严格绑定 127.0.0.1 隔离"]:::warn
+
+    %% 3. 核心容器服务 (底层)
+    TS3["TeamSpeak 3 官方容器服务<br/>(非 root 运行 · UID/GID: 9987 · 数据持久化挂载)"]:::core
+    ADMIN["管理员 (SSH 加密隧道直连 127.0.0.1:10011)"]:::client
+
+    %% 流转走向
+    U -->|"语音流"| FW_U
+    U -->|"文件传输"| FW_T
+    ATTACKER -.->|"外部探测"| FW_Q
+
+    FW_U --> TS3
     FW_T --> TS3
-    ADMIN["管理员 (本地 / SSH隧道)"]:::client -->|"127.0.0.1:10011"| TS3
+    FW_Q -.->|"公网拒绝"| TS3
+    ADMIN -->|"本地回环管理"| TS3
 ```
 
 ---
